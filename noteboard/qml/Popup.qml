@@ -25,7 +25,8 @@ Window {
     // Distance from the popup's top edge to the middle of the first list
     // row. The daemon reads this to drop the pointer onto that row, so the
     // newest clipboard entry is already under the cursor on open.
-    readonly property int firstRowOffset: topBar.height + 24
+    readonly property int firstRowOffset:
+        layout.anchors.topMargin + topBar.height + layout.spacing + home.rowHeight / 2
 
     // Set false again on each show, so a popup that opens away from the
     // pointer does not immediately close. Arms once the mouse is inside.
@@ -54,6 +55,13 @@ Window {
     Settings {
         id: config
         property bool closeOnMouseLeave: false
+        property int historyLimit: 500  // 0 = unlimited
+    }
+
+    Binding {
+        target: clipModel
+        property: "limit"
+        value: config.historyLimit
     }
 
     Rectangle {
@@ -72,6 +80,7 @@ Window {
         }
 
         ColumnLayout {
+            id: layout
             anchors.fill: parent
             anchors.margins: 4
             spacing: 4
@@ -112,7 +121,7 @@ Window {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                HomePage {}
+                HomePage { id: home }
                 SettingsPage { config: config }
             }
         }

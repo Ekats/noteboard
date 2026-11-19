@@ -12,10 +12,13 @@ from pathlib import Path
 
 os.environ.setdefault("QT_WAYLAND_SHELL_INTEGRATION", "layer-shell")
 
+from PySide6.QtCore import QStandardPaths  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 
+from noteboard.models import ClipModel  # noqa: E402
 from noteboard.service import PopupService  # noqa: E402
+from noteboard.store import Store  # noqa: E402
 
 QML_DIR = Path(__file__).parent / "qml"
 
@@ -30,7 +33,15 @@ def main() -> int:
     app.setOrganizationName("noteboard")  # where QtCore Settings persists to
     app.setDesktopFileName("io.github.ekats.noteboard")
 
+    # AppDataLocation would double-nest (noteboard/noteboard) because the
+    # organisation and application names are the same.
+    data_dir = Path(QStandardPaths.writableLocation(
+        QStandardPaths.StandardLocation.GenericDataLocation)) / "noteboard"
+    store = Store(data_dir / "noteboard.db")
+    clip_model = ClipModel(store)  # referenced here so it is not collected
+
     engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("clipModel", clip_model)
     engine.load(QML_DIR / "Popup.qml")
     roots = engine.rootObjects()
     if not roots:
@@ -70,6 +81,9 @@ def main() -> int:
             y = min(y, bounds.height() - window.height())
         window.setProperty("originX", max(0, x))
         window.setProperty("originY", max(0, y))
+        # No cross-process change notification yet, so pick up rows written
+        # by other processes (the board) on every show.
+        clip_model.reload()
         window.setVisible(True)
         window.requestActivate()
 
