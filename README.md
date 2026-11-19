@@ -16,6 +16,27 @@ can do both.
 Configuration is declarative, via the QML module that ships with
 `layer-shell-qt` (`org.kde.layershell`) — no C++ shim is needed.
 
+### Why the board is a separate process
+
+`QT_WAYLAND_SHELL_INTEGRATION=layer-shell` is process-global and has no
+per-window opt-out. Verified on Plasma 6.8.2 with the same QML file run
+twice:
+
+| | Surface created |
+|---|---|
+| env var set | `get_layer_surface(… 2, "window")` |
+| env var unset | `get_xdg_surface(…)` |
+
+A window with no attached `LayerShell` properties still becomes a layer
+surface, just with default namespace `window` on `LayerTop`. So the popup
+and the notes board cannot share a process: the board needs to be an
+ordinary toplevel that the user can move, tile and find in the task
+switcher.
+
+The split is wanted regardless — the popup is a resident daemon doing
+clipboard monitoring, the board launches on demand. They share the SQLite
+store.
+
 ## Status
 
 | Piece | State |
