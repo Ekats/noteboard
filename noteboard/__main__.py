@@ -19,14 +19,15 @@ from noteboard.service import PopupService  # noqa: E402
 
 QML_DIR = Path(__file__).parent / "qml"
 
-# Offset from the pointer, so the popup sits next to the cursor rather than
-# directly under it.
-POINTER_GAP = 12
+# Used only if the QML has not laid out yet and cannot report where its
+# first list row sits.
+FALLBACK_ROW_OFFSET = 64
 
 
 def main() -> int:
     app = QGuiApplication(sys.argv)
     app.setApplicationName("noteboard")
+    app.setOrganizationName("noteboard")  # where QtCore Settings persists to
     app.setDesktopFileName("io.github.ekats.noteboard")
 
     engine = QQmlApplicationEngine()
@@ -55,9 +56,18 @@ def main() -> int:
             window.destroy()
             window.setScreen(screen)
             window.setProperty("targetScreen", screen)
+
+        # Aim the pointer at the first list row rather than at the popup's
+        # corner: centred horizontally, and far enough down that the newest
+        # clipboard entry opens directly under the cursor.
+        row_offset = window.property("firstRowOffset") or FALLBACK_ROW_OFFSET
+        x -= window.width() // 2
+        y -= row_offset
+
+        if screen is not None:
             bounds = screen.geometry()
-            x = min(x + POINTER_GAP, bounds.width() - window.width())
-            y = min(y + POINTER_GAP, bounds.height() - window.height())
+            x = min(x, bounds.width() - window.width())
+            y = min(y, bounds.height() - window.height())
         window.setProperty("originX", max(0, x))
         window.setProperty("originY", max(0, y))
         window.setVisible(True)
