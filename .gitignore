@@ -1,11 +1,12 @@
-cat << EOF > .gitignore
 # Ignore build directories
 /build/
 /dist/
+*.egg-info/
 
-# Ignore dependency directories
-/node_modules/
-/vendor/
+# Python
+__pycache__/
+*.py[cod]
+.venv/
 
 # Ignore environment files
 .env
@@ -23,4 +24,3 @@ cat << EOF > .gitignore
 # OS generated files
 .DS_Store
 Thumbs.db
-EOF
