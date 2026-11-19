@@ -45,7 +45,7 @@ store.
 | Cursor-relative placement | Working |
 | Global shortcut (Meta+Shift+V) | Working, script loaded by the daemon |
 | Clipboard history store and list | Working |
-| Clipboard capture and copy-back | Not started |
+| Clipboard capture and copy-back | Working (needs `wl-clipboard`) |
 | Sticky notes board | Not started |
 | Memos sync | Not started |
 | Google Keep import | Not started |
@@ -55,6 +55,8 @@ store.
 - Qt 6 with `qt6-qtwayland` and `qt6-qtdeclarative`
 - `layer-shell-qt` (provides the `org.kde.layershell` QML module)
 - `python3-pyside6`
+- `wl-clipboard` 2.2+ (`wl-paste --watch` captures the clipboard; needs a
+  compositor with a data-control protocol, which KWin has)
 - A compositor advertising `zwlr_layer_shell_v1` (KWin and wlroots do;
   GNOME/Mutter does not)
 

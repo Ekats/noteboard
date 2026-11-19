@@ -8,6 +8,9 @@ import QtQuick.Layouts
 Item {
     readonly property int rowHeight: 32
 
+    // Emitted after a row is copied back; the window decides to close.
+    signal picked()
+
     ListView {
         id: list
         anchors.fill: parent
@@ -20,7 +23,10 @@ Item {
 
             width: ListView.view.width
             height: rowHeight
-            // Clicking does nothing yet; copy-back arrives with clipboard capture.
+            onClicked: {
+                clipboard.copy(content);
+                picked();
+            }
 
             contentItem: RowLayout {
                 spacing: 6

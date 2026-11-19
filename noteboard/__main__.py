@@ -16,6 +16,7 @@ from PySide6.QtCore import QStandardPaths  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 
+from noteboard.clipboard import WaylandClipboard  # noqa: E402
 from noteboard.kwin import KWinScript  # noqa: E402
 from noteboard.models import ClipModel  # noqa: E402
 from noteboard.service import PopupService  # noqa: E402
@@ -41,8 +42,12 @@ def main() -> int:
     store = Store(data_dir / "noteboard.db")
     clip_model = ClipModel(store)  # referenced here so it is not collected
 
+    clipboard = WaylandClipboard()
+    clipboard.changed.connect(clip_model.add)
+
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("clipModel", clip_model)
+    engine.rootContext().setContextProperty("clipboard", clipboard)
     engine.load(QML_DIR / "Popup.qml")
     roots = engine.rootObjects()
     if not roots:
@@ -99,6 +104,7 @@ def main() -> int:
     # listening yet.
     kwin_script = KWinScript()  # referenced here so it is not collected
     kwin_script.ensure()
+    clipboard.start()
 
     return app.exec()
 

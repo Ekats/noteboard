@@ -121,7 +121,10 @@ Window {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                HomePage { id: home }
+                HomePage {
+                    id: home
+                    onPicked: popup.visible = false
+                }
                 SettingsPage { config: config }
             }
         }
