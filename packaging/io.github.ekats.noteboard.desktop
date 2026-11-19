@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=NoteBoard
+Comment=Popup clipboard history
+Exec=noteboard
+Icon=noteboard
+Terminal=false
+# Autostart-only: the daemon has no window to launch from a menu.
+NoDisplay=true

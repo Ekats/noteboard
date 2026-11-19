@@ -18,4 +18,4 @@ build-backend = "setuptools.build_meta"
 packages = ["noteboard"]
 
 [tool.setuptools.package-data]
-noteboard = ["qml/*.qml"]
+noteboard = ["qml/*.qml", "kwin/*.js"]

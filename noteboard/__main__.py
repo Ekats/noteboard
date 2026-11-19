@@ -16,6 +16,7 @@ from PySide6.QtCore import QStandardPaths  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 
+from noteboard.kwin import KWinScript  # noqa: E402
 from noteboard.models import ClipModel  # noqa: E402
 from noteboard.service import PopupService  # noqa: E402
 from noteboard.store import Store  # noqa: E402
@@ -93,6 +94,11 @@ def main() -> int:
         print("noteboard: could not take the D-Bus name, is it already running?",
               file=sys.stderr)
         return 1
+
+    # After registering, so the shortcut never fires at a daemon that is not
+    # listening yet.
+    kwin_script = KWinScript()  # referenced here so it is not collected
+    kwin_script.ensure()
 
     return app.exec()
 

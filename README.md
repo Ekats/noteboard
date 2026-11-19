@@ -42,8 +42,10 @@ store.
 | Piece | State |
 |---|---|
 | Layer-shell popup surface | Working |
-| Cursor-relative placement | In progress |
-| Clipboard history | Not started |
+| Cursor-relative placement | Working |
+| Global shortcut (Meta+Shift+V) | Working, script loaded by the daemon |
+| Clipboard history store and list | Working |
+| Clipboard capture and copy-back | Not started |
 | Sticky notes board | Not started |
 | Memos sync | Not started |
 | Google Keep import | Not started |
@@ -67,6 +69,16 @@ sudo dnf install python3-pyside6 layer-shell-qt qt6-qtwayland qt6-qtdeclarative
 ```
 python3 -m noteboard
 ```
+
+### Running at login
+
+```
+pip install --user -e .
+cp packaging/io.github.ekats.noteboard.desktop ~/.config/autostart/
+```
+
+The daemon loads its own KWin script (the `Meta+Shift+V` shortcut) on
+start and again whenever KWin restarts, so nothing else needs setting up.
 
 ## Notes on sync
 
