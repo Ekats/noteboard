@@ -20,6 +20,19 @@ Item {
             onToggled: config.closeOnMouseLeave = checked
         }
 
+        RowLayout {
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Font size")
+            }
+            SpinBox {
+                from: 8
+                to: 24
+                value: config.fontSize
+                onValueModified: config.fontSize = value
+            }
+        }
+
         Label { text: qsTr("Clipboard history") }
 
         RowLayout {

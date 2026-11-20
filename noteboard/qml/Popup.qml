@@ -59,6 +59,7 @@ Window {
         id: config
         property bool closeOnMouseLeave: false
         property int historyLimit: 500  // 0 = unlimited
+        property int fontSize: 12  // points, clips and sticky
     }
 
     Binding {
@@ -135,6 +136,7 @@ Window {
 
                 HomePage {
                     id: home
+                    fontSize: config.fontSize
                     onPicked: popup.visible = false
                 }
                 SettingsPage { config: config }

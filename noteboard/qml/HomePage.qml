@@ -7,12 +7,18 @@ import QtQuick.Layouts
 // pointer at the middle of the first row, so it reads rowHeight to compute
 // that spawn offset; the list must stay at the top of this page.
 Item {
+    // Point size for the clips and the sticky; set from the font setting.
+    property real fontSize: 12
+
     // Every row is two text lines tall, one-liners included, so the list
     // reads as an even grid and two-line entries show whole.
     readonly property int twoLines: Math.ceil(fm.lineSpacing * 2)
     readonly property int rowHeight: twoLines + 12
 
-    FontMetrics { id: fm }
+    FontMetrics {
+        id: fm
+        font.pointSize: fontSize
+    }
 
     // Emitted after a row is pasted; the window decides to close.
     signal picked()
@@ -60,12 +66,26 @@ Item {
                             id: label
                             Layout.fillWidth: true
                             Layout.alignment: row.expanded ? Qt.AlignTop : Qt.AlignVCenter
+                            font.pointSize: fontSize
                             text: row.content.trim()
-                            wrapMode: Text.Wrap
-                            // Collapsed: two lines, with an ellipsis when
-                            // more is hidden (extra lines or a long wrap).
+                            // Anywhere as a fallback, so one long word cannot
+                            // run under the ellipsis and arrow.
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                            // Collapsed: two lines. No inline elide; the
+                            // ellipsis sits in its own column on the right.
                             maximumLineCount: row.expanded ? 100000 : 2
-                            elide: Text.ElideRight
+                            clip: true
+                        }
+
+                        // Marks cut-off text at a fixed spot right before the
+                        // arrow, rather than wherever the second line ends.
+                        Label {
+                            Layout.alignment: Qt.AlignVCenter
+                            visible: !row.expanded && label.truncated
+                            font.pointSize: fontSize
+                            // Midline ellipsis: "…" sits on the baseline and
+                            // would look low against the centred arrow.
+                            text: "⋯"
                         }
 
                         IconImage {
@@ -117,6 +137,7 @@ Item {
             TextArea {
                 id: note
                 wrapMode: TextArea.Wrap
+                font.pointSize: fontSize
                 placeholderText: qsTr("Write a note…")
                 text: latestMemo.content
                 // Written through on every edit. A reload that changes the
