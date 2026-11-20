@@ -1,6 +1,7 @@
 """D-Bus service the KWin script calls into.
 
-The script passes output-relative pointer coordinates plus the output name;
+The script passes output-relative pointer coordinates, the output name and
+the active window class;
 see noteboard/kwin/noteboard.js for why that split exists.
 """
 
@@ -12,12 +13,13 @@ OBJECT_PATH = "/Popup"
 
 
 class PopupService(QObject):
-    # x, y are relative to the named output.
-    showRequested = Signal(int, int, str)
+    # x, y are relative to the named output; the last field is the resource
+    # class of the window that was active when the shortcut fired.
+    showRequested = Signal(int, int, str, str)
 
-    @Slot(int, int, str)
-    def showAt(self, x: int, y: int, screen_name: str) -> None:
-        self.showRequested.emit(x, y, screen_name)
+    @Slot(int, int, str, str)
+    def showAt(self, x: int, y: int, screen_name: str, window_class: str) -> None:
+        self.showRequested.emit(x, y, screen_name, window_class)
 
     def register(self) -> bool:
         bus = QDBusConnection.sessionBus()

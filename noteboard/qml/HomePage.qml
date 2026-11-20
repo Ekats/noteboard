@@ -8,7 +8,7 @@ import QtQuick.Layouts
 Item {
     readonly property int rowHeight: 32
 
-    // Emitted after a row is copied back; the window decides to close.
+    // Emitted after a row is pasted; the window decides to close.
     signal picked()
 
     ListView {
@@ -24,7 +24,7 @@ Item {
             width: ListView.view.width
             height: rowHeight
             onClicked: {
-                clipboard.copy(content);
+                paster.paste(content);
                 picked();
             }
 

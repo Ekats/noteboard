@@ -16,8 +16,12 @@ function showPopupAtPointer() {
         return;
     }
     var g = screen.geometry;
+    // The window the popup will paste into, read now because the popup
+    // takes focus as soon as it opens.
+    var active = workspace.activeWindow;
     callDBus("io.github.ekats.noteboard", "/Popup", "", "showAt",
-             Math.round(p.x - g.x), Math.round(p.y - g.y), screen.name);
+             Math.round(p.x - g.x), Math.round(p.y - g.y), screen.name,
+             active ? String(active.resourceClass) : "");
 }
 
 registerShortcut("NoteboardShowPopup",

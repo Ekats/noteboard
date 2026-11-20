@@ -37,6 +37,18 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(self.s.add_clip("a", 0), a)
         self.assertEqual(self.contents(), ["a", "b"])
 
+    def test_recopy_moves_row_without_adding_one(self):
+        # Pasting an entry copies it back, which must not create a new row.
+        pinned = self.s.add_clip("pinned", 0)
+        self.s.set_clip_pinned(pinned, True)
+        old = self.s.add_clip("old", 0)
+        self.s.add_clip("mid", 0)
+        self.s.add_clip("new", 0)
+        self.assertEqual(self.s.add_clip("old", 0), old)
+        self.assertEqual(len(self.s.clips()), 4)
+        # Pinned rows keep their group; the bump is within the unpinned one.
+        self.assertEqual(self.contents(), ["pinned", "old", "new", "mid"])
+
     def test_empty_ignored(self):
         self.assertIsNone(self.s.add_clip("", 0))
         self.assertIsNone(self.s.add_clip(" \n\t", 0))

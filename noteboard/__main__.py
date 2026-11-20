@@ -19,6 +19,7 @@ from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 from noteboard.clipboard import WaylandClipboard  # noqa: E402
 from noteboard.kwin import KWinScript  # noqa: E402
 from noteboard.models import ClipModel  # noqa: E402
+from noteboard.paste import Paster, PortalKeyboard  # noqa: E402
 from noteboard.service import PopupService  # noqa: E402
 from noteboard.store import Store  # noqa: E402
 
@@ -45,16 +46,19 @@ def main() -> int:
     clipboard = WaylandClipboard()
     clipboard.changed.connect(clip_model.add)
 
+    keyboard = PortalKeyboard()
+    paster = Paster(clipboard, keyboard)
+
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("clipModel", clip_model)
-    engine.rootContext().setContextProperty("clipboard", clipboard)
+    engine.rootContext().setContextProperty("paster", paster)
     engine.load(QML_DIR / "Popup.qml")
     roots = engine.rootObjects()
     if not roots:
         return 1
     window = roots[0]
 
-    def place(x: int, y: int, screen_name: str) -> None:
+    def place(x: int, y: int, screen_name: str, window_class: str) -> None:
         """Show the popup near (x, y) on the named output.
 
         x and y arrive output-relative from the KWin script. Clamping keeps
@@ -73,6 +77,8 @@ def main() -> int:
             window.destroy()
             window.setScreen(screen)
             window.setProperty("targetScreen", screen)
+
+        paster.set_target(window_class)
 
         # Aim the pointer at the first list row rather than at the popup's
         # corner: centred horizontally, and far enough down that the newest
@@ -105,6 +111,7 @@ def main() -> int:
     kwin_script = KWinScript()  # referenced here so it is not collected
     kwin_script.ensure()
     clipboard.start()
+    keyboard.start()
 
     return app.exec()
 

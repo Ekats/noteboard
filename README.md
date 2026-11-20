@@ -46,6 +46,7 @@ store.
 | Global shortcut (Meta+Shift+V) | Working, script loaded by the daemon |
 | Clipboard history store and list | Working |
 | Clipboard capture and copy-back | Working (needs `wl-clipboard`) |
+| Paste into the previous app | Working, via the RemoteDesktop portal (one-off permission prompt on first run) |
 | Sticky notes board | Not started |
 | Memos sync | Not started |
 | Google Keep import | Not started |
@@ -55,6 +56,8 @@ store.
 - Qt 6 with `qt6-qtwayland` and `qt6-qtdeclarative`
 - `layer-shell-qt` (provides the `org.kde.layershell` QML module)
 - `python3-pyside6`
+- `python3-gobject` (Gio talks to the RemoteDesktop portal for pasting;
+  PySide6's QtDBus cannot send the uint options it needs)
 - `wl-clipboard` 2.2+ (`wl-paste --watch` captures the clipboard; needs a
   compositor with a data-control protocol, which KWin has)
 - A compositor advertising `zwlr_layer_shell_v1` (KWin and wlroots do;
@@ -63,7 +66,7 @@ store.
 On Fedora:
 
 ```
-sudo dnf install python3-pyside6 layer-shell-qt qt6-qtwayland qt6-qtdeclarative
+sudo dnf install python3-pyside6 python3-gobject layer-shell-qt qt6-qtwayland qt6-qtdeclarative
 ```
 
 ## Running
