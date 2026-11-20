@@ -50,7 +50,10 @@ Window {
     // Starts hidden: this is a resident daemon, shown on request over D-Bus.
     visible: false
 
-    onVisibleChanged: if (visible) leaveArmed = false
+    onVisibleChanged: {
+        leaveTimer.stop();  // a close pending from the last show must not fire
+        if (visible) leaveArmed = false;
+    }
 
     Settings {
         id: config
@@ -73,10 +76,19 @@ Window {
             onHoveredChanged: {
                 if (hovered) {
                     popup.leaveArmed = true;
+                    leaveTimer.stop();
                 } else if (popup.leaveArmed && config.closeOnMouseLeave) {
-                    popup.visible = false;
+                    leaveTimer.restart();
                 }
             }
+        }
+
+        // Grace period, so brushing past the edge does not close the popup;
+        // coming back inside within it cancels the close.
+        Timer {
+            id: leaveTimer
+            interval: 3000
+            onTriggered: popup.visible = false
         }
 
         ColumnLayout {

@@ -15,7 +15,7 @@ Item {
         spacing: 8
 
         Switch {
-            text: qsTr("Close when mouse leaves")
+            text: qsTr("Close 3 s after the mouse leaves")
             checked: config.closeOnMouseLeave
             onToggled: config.closeOnMouseLeave = checked
         }
