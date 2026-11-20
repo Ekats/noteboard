@@ -12,11 +12,29 @@ Item {
     property real fontSize: 12
     // Background of the draft pad; set from the sticky colour setting.
     property string stickyColor: "#af9659"
+    // Pad height in text lines as last dragged; 0 = the default. Lines rather
+    // than pixels so the split keeps following the font size.
+    property real padLines: 0
 
+    // Clip text is set a touch tighter than the font's natural spacing.
+    readonly property real lineFactor: 0.92
     // Every row is two text lines tall, one-liners included, so the list
     // reads as an even grid and two-line entries show whole.
-    readonly property int twoLines: Math.ceil(fm.lineSpacing * 2)
+    readonly property int twoLines: Math.ceil(fm.lineSpacing * 2 * lineFactor)
     readonly property int rowHeight: twoLines + 12
+
+    // The pad fits 6 lines by default, shrinking when a large font would
+    // make that more than half the page. A dragged height is honoured up to
+    // whatever leaves one clip row visible.
+    readonly property int defaultPadLines: 6
+    readonly property real padChrome: note.topPadding + note.bottomPadding
+    readonly property real padHeight: {
+        const lines = padLines > 0 ? padLines : defaultPadLines;
+        const want = Math.ceil(lines * fm.lineSpacing + padChrome);
+        const cap = padLines > 0 ? split.height - rowHeight - 8 : split.height / 2;
+        return Math.max(Math.ceil(2 * fm.lineSpacing + padChrome), Math.min(want, cap));
+    }
+    onPadHeightChanged: pad.SplitView.preferredHeight = padHeight
 
     FontMetrics {
         id: fm
@@ -25,17 +43,36 @@ Item {
 
     // Emitted after a row is pasted; the window decides to close.
     signal picked()
+    // Emitted when the user finishes dragging the split, in text lines.
+    signal padResized(real lines)
 
-    ColumnLayout {
+    SplitView {
+        id: split
         anchors.fill: parent
-        spacing: 4
+        orientation: Qt.Vertical
 
-        // Both halves share a preferredHeight so the layout splits the page
-        // evenly between them.
+        // Dragging writes SplitView.preferredHeight directly, so the pad's
+        // height is set imperatively (onPadHeightChanged) rather than bound.
+        onResizingChanged: if (!resizing)
+            padResized((pad.height - padChrome) / fm.lineSpacing)
+
+        handle: Item {
+            implicitHeight: 10
+
+            // A short grab pill on the middle line.
+            Rectangle {
+                anchors.centerIn: parent
+                width: 40
+                height: 4
+                radius: 2
+                color: parent.SplitHandle.pressed || parent.SplitHandle.hovered
+                    ? palette.highlight : palette.mid
+            }
+        }
+
         Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.preferredHeight: 1
+            SplitView.fillHeight: true
+            SplitView.minimumHeight: rowHeight
 
             ListView {
                 id: list
@@ -70,6 +107,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.alignment: row.expanded ? Qt.AlignTop : Qt.AlignVCenter
                             font.pointSize: fontSize
+                            lineHeight: lineFactor
                             text: row.content.trim()
                             // Anywhere as a fallback, so one long word cannot
                             // run under the ellipsis and arrow.
@@ -128,18 +166,24 @@ Item {
 
         // Sticky-coloured pad; text stays near-black whatever the theme.
         Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.preferredHeight: 1
+            id: pad
+            SplitView.minimumHeight: Math.ceil(2 * fm.lineSpacing + padChrome)
+            Component.onCompleted: SplitView.preferredHeight = padHeight
             radius: 8
             color: stickyColor
 
-            ScrollView {
+            // A bare Flickable rather than a ScrollView: the TextArea clips
+            // its text to its own height minus bottomPadding, so reserving
+            // room for the button there hid the lines above it. The margin
+            // adds scroll range past the end instead, and the text keeps the
+            // full viewport.
+            Flickable {
                 anchors.fill: parent
-                // Keeps the last lines clear of the send button.
-                anchors.bottomMargin: sendButton.height
+                clip: true
+                bottomMargin: sendButton.height + 16
+                ScrollBar.vertical: ScrollBar {}
 
-                TextArea {
+                TextArea.flickable: TextArea {
                     id: note
                     wrapMode: TextArea.Wrap
                     font.pointSize: fontSize
@@ -162,17 +206,32 @@ Item {
                 }
             }
 
-            ToolButton {
+            // Floats over the text in a slight off-shade of the note: darker
+            // on light colours, lighter on dark ones.
+            RoundButton {
                 id: sendButton
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.margins: 4
+                anchors.margins: 8
+                width: 48
+                height: 48
                 enabled: note.text.trim().length > 0
+                opacity: enabled ? 1 : 0.45
                 icon.name: "document-send"
+                icon.width: 26
+                icon.height: 26
                 icon.color: Sticky.ink(stickyColor)
                 onClicked: draft.send()
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Send (Ctrl+Enter)")
+
+                background: Rectangle {
+                    radius: width / 2
+                    readonly property bool light: Sticky.isLight(stickyColor)
+                    readonly property real shade: sendButton.pressed ? 1.3
+                        : sendButton.hovered ? 1.2 : 1.12
+                    color: light ? Qt.darker(stickyColor, shade) : Qt.lighter(stickyColor, shade + 0.1)
+                }
             }
         }
     }

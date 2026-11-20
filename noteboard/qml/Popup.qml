@@ -61,6 +61,7 @@ Window {
         property int historyLimit: 500  // 0 = unlimited
         property int fontSize: 12  // points, clips and sticky
         property string stickyColor: "#af9659"  // default for the pad and notes without their own
+        property real padLines: 0  // dragged draft pad height in text lines; 0 = default
     }
 
     Binding {
@@ -171,7 +172,9 @@ Window {
                     id: home
                     fontSize: config.fontSize
                     stickyColor: config.stickyColor
+                    padLines: config.padLines
                     onPicked: popup.visible = false
+                    onPadResized: lines => config.padLines = lines
                 }
                 NotesPage {
                     fontSize: config.fontSize
