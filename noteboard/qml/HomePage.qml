@@ -12,6 +12,9 @@ Item {
     property real fontSize: 12
     // Background of the draft pad; set from the sticky colour setting.
     property string stickyColor: "#af9659"
+    // Alpha in percent of the pad and the clip list surface; the send button
+    // and all text stay opaque.
+    property int innerOpacity: 90
     // Pad height in text lines as last dragged; 0 = the default. Lines rather
     // than pixels so the split keeps following the font size.
     property real padLines: 0
@@ -74,6 +77,13 @@ Item {
         Item {
             SplitView.fillHeight: true
             SplitView.minimumHeight: rowHeight
+
+            // The list's own surface, so it reads as an inner area like the pad.
+            Rectangle {
+                anchors.fill: parent
+                radius: 8
+                color: Qt.alpha(palette.base, innerOpacity / 100)
+            }
 
             ListView {
                 id: list
@@ -177,7 +187,7 @@ Item {
             SplitView.minimumHeight: Math.ceil(2 * padLine + padChrome)
             Component.onCompleted: SplitView.preferredHeight = padHeight
             radius: 8
-            color: stickyColor
+            color: Qt.alpha(stickyColor, innerOpacity / 100)
 
             // A bare Flickable rather than a ScrollView: the TextArea clips
             // its text to its own height minus bottomPadding, so reserving

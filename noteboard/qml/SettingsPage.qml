@@ -86,7 +86,7 @@ Item {
             }
         }
 
-        Label { text: qsTr("Background opacity") }
+        Label { text: qsTr("Window background") }
 
         RowLayout {
             Layout.fillWidth: true
@@ -105,6 +105,28 @@ Item {
                 Layout.minimumWidth: 70
                 horizontalAlignment: Text.AlignRight
                 text: qsTr("%1 %").arg(config.opacity)
+            }
+        }
+
+        Label { text: qsTr("Notes and clipboard") }
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            Slider {
+                Layout.fillWidth: true
+                from: 30
+                to: 100
+                stepSize: 5
+                snapMode: Slider.SnapAlways
+                value: config.innerOpacity
+                onMoved: config.innerOpacity = Math.round(value)
+            }
+
+            Label {
+                Layout.minimumWidth: 70
+                horizontalAlignment: Text.AlignRight
+                text: qsTr("%1 %").arg(config.innerOpacity)
             }
         }
 

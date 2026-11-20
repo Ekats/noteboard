@@ -71,6 +71,7 @@ Window {
         property string stickyColor: "#af9659"  // default for the pad and notes without their own
         property real padLines: 0  // dragged draft pad height in text lines; 0 = default
         property int opacity: 80  // percent, panel background only
+        property int innerOpacity: 90  // percent, pad, note cards and clip list surfaces
     }
 
     Binding {
@@ -229,6 +230,7 @@ Window {
                     id: home
                     fontSize: config.fontSize
                     stickyColor: config.stickyColor
+                    innerOpacity: config.innerOpacity
                     padLines: config.padLines
                     onPicked: popup.visible = false
                     onPadResized: lines => config.padLines = lines
@@ -236,6 +238,7 @@ Window {
                 NotesPage {
                     fontSize: config.fontSize
                     stickyColor: config.stickyColor
+                    innerOpacity: config.innerOpacity
                 }
                 SettingsPage { config: config }
             }

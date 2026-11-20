@@ -10,6 +10,8 @@ Item {
     property real fontSize: 12
     // Default card colour, from the sticky colour setting.
     property string stickyColor: "#af9659"
+    // Card background alpha in percent; the text stays opaque.
+    property int innerOpacity: 90
 
     ListView {
         id: list
@@ -30,7 +32,7 @@ Item {
             width: ListView.view.width
             height: body.implicitHeight + stamp.implicitHeight + 8 + 20
             radius: 8
-            color: fill
+            color: Qt.alpha(fill, innerOpacity / 100)
 
             Label {
                 id: body
