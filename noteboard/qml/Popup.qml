@@ -72,6 +72,7 @@ Window {
         property real padLines: 0  // dragged draft pad height in text lines; 0 = default
         property int opacity: 80  // percent, panel background only
         property int innerOpacity: 90  // percent, pad, note cards and clip list surfaces
+        property bool linkOpacity: false  // the two sliders move together
     }
 
     Binding {
@@ -130,8 +131,29 @@ Window {
         width: panelWidth
         height: panelHeight
         radius: 8
-        // Alpha on the colour, not Item.opacity, so the content stays opaque.
-        color: Qt.alpha(palette.window, config.opacity / 100)
+        color: "transparent"
+
+        // The translucent background. Alpha on the colour, not Item.opacity,
+        // so the content stays opaque. On Capture and Notes it is cut out
+        // under the inner surfaces: they are drawn at their own alpha, and
+        // over this one the two would compound (inner could never look more
+        // transparent than outer).
+        Rectangle {
+            id: panelBg
+            anchors.fill: parent
+            radius: panel.radius
+            color: Qt.alpha(palette.window, config.opacity / 100)
+            layer.enabled: pages.currentIndex < 2
+            layer.effect: MultiEffect {
+                maskEnabled: true
+                maskInverted: true
+                maskSource: surfaceMask
+                // Inner surfaces are at least 30 % alpha; anything above
+                // this counts as a hole. The spread softens the edge.
+                maskThresholdMin: 0.1
+                maskSpreadAtMin: 0.1
+            }
+        }
 
         HoverHandler {
             onHoveredChanged: {
@@ -236,12 +258,36 @@ Window {
                     onPadResized: lines => config.padLines = lines
                 }
                 NotesPage {
+                    id: notes
                     fontSize: config.fontSize
                     stickyColor: config.stickyColor
                     innerOpacity: config.innerOpacity
                 }
                 SettingsPage { config: config }
             }
+        }
+    }
+
+    // Mask source for panelBg: a live copy of the current page, placed over
+    // the panel. Only its inner surfaces have alpha worth a hole; it stops
+    // updating while hidden and on Settings, which has none.
+    Item {
+        id: surfaceMask
+        x: panel.x
+        y: panel.y
+        width: panel.width
+        height: panel.height
+        visible: false
+        layer.enabled: true
+
+        ShaderEffectSource {
+            x: layout.x + pages.x
+            y: layout.y + pages.y
+            width: pages.width
+            height: pages.height
+            live: popup.visible && pages.currentIndex < 2
+            hideSource: false
+            sourceItem: pages.currentIndex === 1 ? notes : home
         }
     }
 

@@ -13,6 +13,29 @@ Item {
     readonly property var stickyColors: ["#af9659", "#a27a66", "#a26670", "#8967a2",
                                          "#667aa2", "#669da2", "#66a27a", "#89a266"]
 
+    // A drag of one opacity slider to v. Linked, the other one moves by the
+    // same delta, which is limited so neither leaves 30-100 and the offset
+    // between them holds. The dragged handle is put back on the allowed
+    // value: a drag breaks the slider's value binding.
+    function moveOpacity(v, outer) {
+        const mine = outer ? config.opacity : config.innerOpacity;
+        const other = outer ? config.innerOpacity : config.opacity;
+        let delta = v - mine;
+        if (config.linkOpacity)
+            delta = Math.max(30 - Math.min(mine, other), Math.min(100 - Math.max(mine, other), delta));
+        else
+            delta = Math.max(30, Math.min(100, v)) - mine;
+        if (outer) {
+            config.opacity = mine + delta;
+            if (config.linkOpacity) config.innerOpacity = other + delta;
+        } else {
+            config.innerOpacity = mine + delta;
+            if (config.linkOpacity) config.opacity = other + delta;
+        }
+        outerSlider.value = config.opacity;
+        innerSlider.value = config.innerOpacity;
+    }
+
     // 0 means unlimited.
     readonly property var historySteps: [50, 100, 250, 500, 1000, 2500, 5000, 0]
 
@@ -92,13 +115,14 @@ Item {
             Layout.fillWidth: true
 
             Slider {
+                id: outerSlider
                 Layout.fillWidth: true
                 from: 30
                 to: 100
                 stepSize: 5
                 snapMode: Slider.SnapAlways
                 value: config.opacity
-                onMoved: config.opacity = Math.round(value)
+                onMoved: moveOpacity(Math.round(value), true)
             }
 
             Label {
@@ -108,19 +132,37 @@ Item {
             }
         }
 
-        Label { text: qsTr("Notes and clipboard") }
+        RowLayout {
+            Layout.fillWidth: true
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Notes and clipboard")
+            }
+
+            ToolButton {
+                id: linkButton
+                icon.name: "link"
+                checkable: true
+                checked: config.linkOpacity
+                onToggled: config.linkOpacity = checked
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Move both sliders together")
+            }
+        }
 
         RowLayout {
             Layout.fillWidth: true
 
             Slider {
+                id: innerSlider
                 Layout.fillWidth: true
                 from: 30
                 to: 100
                 stepSize: 5
                 snapMode: Slider.SnapAlways
                 value: config.innerOpacity
-                onMoved: config.innerOpacity = Math.round(value)
+                onMoved: moveOpacity(Math.round(value), false)
             }
 
             Label {
