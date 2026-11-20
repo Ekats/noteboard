@@ -8,6 +8,8 @@ import "sticky.js" as Sticky
 Item {
     // Point size for the card text; set from the font setting.
     property real fontSize: 12
+    // Bold and italic come from the font root in Popup.qml.
+    property bool fontOutline: false
     // Default card colour, from the sticky colour setting.
     property string stickyColor: "#af9659"
     // Card background alpha in percent; the text stays opaque.
@@ -34,8 +36,9 @@ Item {
             radius: 8
             color: Qt.alpha(fill, innerOpacity / 100)
 
-            Label {
+            OutlineLabel {
                 id: body
+                outline: fontOutline
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
@@ -50,8 +53,9 @@ Item {
                 text: Sticky.breakLines(card.content)
             }
 
-            Label {
+            OutlineLabel {
                 id: stamp
+                outline: fontOutline
                 anchors.left: parent.left
                 anchors.bottom: parent.bottom
                 anchors.margins: 10
@@ -62,7 +66,8 @@ Item {
         }
     }
 
-    Label {
+    OutlineLabel {
+        outline: fontOutline
         anchors.centerIn: parent
         visible: list.count === 0
         text: qsTr("No notes yet — send one from Capture")

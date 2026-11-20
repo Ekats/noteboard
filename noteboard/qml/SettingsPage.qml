@@ -51,7 +51,8 @@ Item {
         }
 
         RowLayout {
-            Label {
+            OutlineLabel {
+                outline: config.fontOutline
                 Layout.fillWidth: true
                 text: qsTr("Font size")
             }
@@ -61,9 +62,109 @@ Item {
                 value: config.fontSize
                 onValueModified: config.fontSize = value
             }
+
+            // Global UI font style, not just clips and notes.
+            ToolButton {
+                icon.name: "format-text-bold"
+                checkable: true
+                checked: config.fontBold
+                onToggled: config.fontBold = checked
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Bold")
+            }
+            ToolButton {
+                icon.name: "format-text-italic"
+                checkable: true
+                checked: config.fontItalic
+                onToggled: config.fontItalic = checked
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Italic")
+            }
+            // Breeze has no text-outline icon; the stroke one is the closest.
+            ToolButton {
+                icon.name: "format-stroke-color"
+                checkable: true
+                checked: config.fontOutline
+                onToggled: config.fontOutline = checked
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Outline")
+            }
         }
 
-        Label { text: qsTr("Sticky colour") }
+        // A filterable family picker. Not an editable ComboBox: that one
+        // autocompletes inline and rewrites its text when the model narrows,
+        // which fights a type-to-filter list. The list is an in-window Popup,
+        // which matters: a second window could not take focus here.
+        TextField {
+            id: family
+            Layout.fillWidth: true
+            // The first entry stands for the empty (system) family.
+            readonly property string systemDefault: qsTr("System default")
+            readonly property var families: [systemDefault].concat(Qt.fontFamilies())
+            readonly property string shown: config.fontFamily !== "" ? config.fontFamily : systemDefault
+            // What the user typed; the full list while the text is the
+            // untouched current family.
+            readonly property string query: activeFocus && text !== shown ? text.toLowerCase() : ""
+            readonly property var matches: query === "" ? families
+                : families.filter(f => f.toLowerCase().includes(query))
+
+            function pick(name) {
+                config.fontFamily = name === systemDefault ? "" : name;
+                list.close();
+                focus = false;
+            }
+
+            text: shown
+            selectByMouse: true
+            // Resting state shows the current family, in its own face.
+            font.family: config.fontFamily !== "" ? config.fontFamily : Qt.application.font.family
+            onActiveFocusChanged: {
+                if (activeFocus) {
+                    selectAll();
+                    list.open();
+                } else {
+                    list.close();
+                    text = Qt.binding(() => shown);
+                }
+            }
+            onAccepted: if (matches.length > 0) pick(matches[0])
+            Keys.onDownPressed: list.open()
+
+            Popup {
+                id: list
+                y: family.height
+                width: family.width
+                height: Math.min(220, view.contentHeight + 2 * padding)
+                padding: 1
+                focus: false  // the field keeps the keyboard
+                closePolicy: Popup.CloseOnEscape
+
+                // Each family in its own face; the list is virtualised, so
+                // only the visible rows are built.
+                contentItem: ListView {
+                    id: view
+                    clip: true
+                    model: family.matches
+                    ScrollBar.vertical: ScrollBar {}
+
+                    delegate: ItemDelegate {
+                        required property int index
+                        required property string modelData
+                        width: ListView.view.width
+                        // A click must not pull focus off the field, which
+                        // would close the list before the click lands.
+                        focusPolicy: Qt.NoFocus
+                        text: modelData
+                        font.family: modelData === family.systemDefault
+                            ? Qt.application.font.family : modelData
+                        highlighted: modelData === family.shown
+                        onClicked: family.pick(modelData)
+                    }
+                }
+            }
+        }
+
+        OutlineLabel { outline: config.fontOutline; text: qsTr("Sticky colour") }
 
         // Inline on purpose: a ColorDialog would be a second window, and with
         // layer-shell integration global to the process it could not take focus.
@@ -109,7 +210,7 @@ Item {
             }
         }
 
-        Label { text: qsTr("Window background") }
+        OutlineLabel { outline: config.fontOutline; text: qsTr("Window background") }
 
         RowLayout {
             Layout.fillWidth: true
@@ -125,7 +226,8 @@ Item {
                 onMoved: moveOpacity(Math.round(value), true)
             }
 
-            Label {
+            OutlineLabel {
+                outline: config.fontOutline
                 Layout.minimumWidth: 70
                 horizontalAlignment: Text.AlignRight
                 text: qsTr("%1 %").arg(config.opacity)
@@ -135,7 +237,8 @@ Item {
         RowLayout {
             Layout.fillWidth: true
 
-            Label {
+            OutlineLabel {
+                outline: config.fontOutline
                 Layout.fillWidth: true
                 text: qsTr("Notes and clipboard")
             }
@@ -165,14 +268,15 @@ Item {
                 onMoved: moveOpacity(Math.round(value), false)
             }
 
-            Label {
+            OutlineLabel {
+                outline: config.fontOutline
                 Layout.minimumWidth: 70
                 horizontalAlignment: Text.AlignRight
                 text: qsTr("%1 %").arg(config.innerOpacity)
             }
         }
 
-        Label { text: qsTr("Clipboard history") }
+        OutlineLabel { outline: config.fontOutline; text: qsTr("Clipboard history") }
 
         RowLayout {
             Layout.fillWidth: true
@@ -196,7 +300,8 @@ Item {
                 onPressedChanged: if (!pressed) commit()
             }
 
-            Label {
+            OutlineLabel {
+                outline: config.fontOutline
                 Layout.minimumWidth: 70
                 horizontalAlignment: Text.AlignRight
                 text: {

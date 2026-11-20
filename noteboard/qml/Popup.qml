@@ -73,6 +73,10 @@ Window {
         property int opacity: 80  // percent, panel background only
         property int innerOpacity: 90  // percent, pad, note cards and clip list surfaces
         property bool linkOpacity: false  // the two sliders move together
+        property string fontFamily: ""  // all UI text; empty = the system font
+        property bool fontBold: false
+        property bool fontItalic: false
+        property bool fontOutline: false
     }
 
     Binding {
@@ -174,6 +178,17 @@ Window {
             onTriggered: popup.visible = false
         }
 
+        // The plain Window above has no font of its own to hand down, so this
+        // Control is the font root: every Control and Label below inherits
+        // family/bold/italic from it, and explicit sizes elsewhere still win.
+        Control {
+            id: ui
+            anchors.fill: parent
+            // An empty family would not mean "default" to the font system.
+            font.family: config.fontFamily !== "" ? config.fontFamily : Qt.application.font.family
+            font.bold: config.fontBold
+            font.italic: config.fontItalic
+
         ColumnLayout {
             id: layout
             anchors.fill: parent
@@ -251,6 +266,10 @@ Window {
                 HomePage {
                     id: home
                     fontSize: config.fontSize
+                    fontFamily: ui.font.family
+                    fontBold: config.fontBold
+                    fontItalic: config.fontItalic
+                    fontOutline: config.fontOutline
                     stickyColor: config.stickyColor
                     innerOpacity: config.innerOpacity
                     padLines: config.padLines
@@ -260,11 +279,13 @@ Window {
                 NotesPage {
                     id: notes
                     fontSize: config.fontSize
+                    fontOutline: config.fontOutline
                     stickyColor: config.stickyColor
                     innerOpacity: config.innerOpacity
                 }
                 SettingsPage { config: config }
             }
+        }
         }
     }
 

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.impl
+import QtQuick.Effects
 import QtQuick.Layouts
 import "sticky.js" as Sticky
 
@@ -10,6 +11,12 @@ import "sticky.js" as Sticky
 Item {
     // Point size for the clips and the sticky; set from the font setting.
     property real fontSize: 12
+    // Global font style; the labels pick bold/italic up from the font root in
+    // Popup.qml, but FontMetrics is not an Item and has to be told.
+    property string fontFamily: ""
+    property bool fontBold: false
+    property bool fontItalic: false
+    property bool fontOutline: false
     // Background of the draft pad; set from the sticky colour setting.
     property string stickyColor: "#af9659"
     // Alpha in percent of the pad and the clip list surface; the send button
@@ -43,6 +50,9 @@ Item {
     FontMetrics {
         id: fm
         font.pointSize: fontSize
+        font.family: fontFamily
+        font.bold: fontBold
+        font.italic: fontItalic
     }
 
     // Emitted after a row is pasted; the window decides to close.
@@ -119,8 +129,9 @@ Item {
                     contentItem: RowLayout {
                         spacing: 6
 
-                        Label {
+                        OutlineLabel {
                             id: label
+                            outline: fontOutline
                             Layout.fillWidth: true
                             Layout.alignment: row.expanded ? Qt.AlignTop : Qt.AlignVCenter
                             font.pointSize: fontSize
@@ -137,7 +148,8 @@ Item {
 
                         // Marks cut-off text at a fixed spot right before the
                         // arrow, rather than wherever the second line ends.
-                        Label {
+                        OutlineLabel {
+                            outline: fontOutline
                             Layout.alignment: Qt.AlignVCenter
                             visible: !row.expanded && label.truncated
                             font.pointSize: fontSize
@@ -173,7 +185,8 @@ Item {
                 }
             }
 
-            Label {
+            OutlineLabel {
+                outline: fontOutline
                 anchors.centerIn: parent
                 visible: list.count === 0
                 text: qsTr("No clipboard history yet")
@@ -200,10 +213,49 @@ Item {
                 bottomMargin: sendButton.height + 16
                 ScrollBar.vertical: ScrollBar {}
 
+                // TextEdit has no outline style and Qt Quick ignores
+                // QTextCharFormat.textOutline, so the outline is faked:
+                // tinted copies of the pad one pixel around it, drawn under
+                // the real text. Siblings of the TextArea, so they scroll
+                // with it; the document itself is never touched.
+                // One capture of the TextArea shared by all eight copies.
+                ShaderEffectSource {
+                    id: noteCapture
+                    sourceItem: note
+                    live: fontOutline
+                    visible: false
+                    width: note.width
+                    height: note.height
+                }
+
+                Repeater {
+                    model: fontOutline ? [[-1, -1], [0, -1], [1, -1], [-1, 0],
+                                          [1, 0], [-1, 1], [0, 1], [1, 1]] : []
+
+                    MultiEffect {
+                        required property var modelData
+                        source: noteCapture
+                        x: note.x + modelData[0]
+                        y: note.y + modelData[1]
+                        width: note.width
+                        height: note.height
+                        z: -1
+                        // Pushed to white or black: colorization scales by the
+                        // source's luminance, so it cannot lighten dark glyphs.
+                        // Opposite of the text colour, fully opaque.
+                        brightness: note.color.hslLightness > 0.5 ? -1 : 1
+                        // Drops the subpixel-AA colour of the captured glyphs.
+                        saturation: -1
+                    }
+                }
+
                 TextArea.flickable: TextArea {
                     id: note
                     wrapMode: TextArea.Wrap
                     font.pointSize: fontSize
+                    // Native text is LCD-antialiased, and its coloured
+                    // fringes show against the neutral outline.
+                    renderType: fontOutline ? Text.CurveRendering : Text.NativeRendering
                     color: Sticky.ink(stickyColor)
                     background: null  // the pad supplies the colour
                     placeholderTextColor: Sticky.muted(stickyColor)
