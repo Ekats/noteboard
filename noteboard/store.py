@@ -212,6 +212,17 @@ class Store:
                      r["title"], r["color"], r["reminder_at"], r["position"])
                 for r in rows]
 
+    def latest_memo(self) -> Memo | None:
+        # Not pinned-first like memos(): "latest" means most recently edited.
+        r = self._db.execute(
+            "SELECT m.*, l.title, l.color, l.reminder_at, l.position"
+            " FROM memo m LEFT JOIN memo_local l ON l.memo_id = m.id"
+            " WHERE m.deleted_at IS NULL AND m.state = 'NORMAL'"
+            " ORDER BY m.update_time DESC, m.id LIMIT 1").fetchone()
+        return r and Memo(r["id"], r["content"], bool(r["pinned"]), r["state"],
+                          r["visibility"], r["create_time"], r["update_time"],
+                          r["title"], r["color"], r["reminder_at"], r["position"])
+
     def set_memo_local(self, memo_id: str, *, title=_UNSET, color=_UNSET,
                        reminder_at=_UNSET, position=_UNSET) -> None:
         fields = {k: v for k, v in (("title", title), ("color", color),

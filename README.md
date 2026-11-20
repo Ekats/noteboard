@@ -47,6 +47,7 @@ store.
 | Clipboard history store and list | Working |
 | Clipboard capture and copy-back | Working (needs `wl-clipboard`) |
 | Paste into the previous app | Working, via the RemoteDesktop portal (one-off permission prompt on first run) |
+| Latest sticky editable in the popup | Working (written to the store on every edit) |
 | Sticky notes board | Not started |
 | Memos sync | Not started |
 | Google Keep import | Not started |

@@ -44,7 +44,7 @@ Window {
     LayerShell.Window.screen: targetScreen
 
     width: 400
-    height: 500
+    height: 520
     color: "transparent"
 
     // Starts hidden: this is a resident daemon, shown on request over D-Bus.
@@ -87,7 +87,7 @@ Window {
         // coming back inside within it cancels the close.
         Timer {
             id: leaveTimer
-            interval: 3000
+            interval: 2000
             onTriggered: popup.visible = false
         }
 

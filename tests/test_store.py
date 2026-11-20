@@ -49,6 +49,19 @@ class StoreTest(unittest.TestCase):
         # Pinned rows keep their group; the bump is within the unpinned one.
         self.assertEqual(self.contents(), ["pinned", "old", "new", "mid"])
 
+    def test_latest_memo_is_newest_live_normal(self):
+        self.assertIsNone(self.s.latest_memo())
+        a = self.s.create_memo("a", pinned=True)
+        b = self.s.create_memo("b")
+        c = self.s.create_memo("c")
+        self.assertEqual(self.s.latest_memo().id, c)
+        self.s.update_memo(b, content="b2")  # an edit makes it the latest
+        self.assertEqual(self.s.latest_memo().content, "b2")
+        self.s.update_memo(b, state="ARCHIVED")
+        self.assertEqual(self.s.latest_memo().id, c)
+        self.s.delete_memo(c)
+        self.assertEqual(self.s.latest_memo().id, a)  # pin does not outrank recency
+
     def test_empty_ignored(self):
         self.assertIsNone(self.s.add_clip("", 0))
         self.assertIsNone(self.s.add_clip(" \n\t", 0))
