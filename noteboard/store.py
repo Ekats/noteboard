@@ -81,6 +81,22 @@ class Memo:
     position: int | None
 
 
+@dataclass(frozen=True)
+class SyncRow:
+    """A memo row as the sync sees it. Doubles as the optimistic-lock token:
+    a write guarded by `base` is skipped if the row changed since it was read."""
+    id: str
+    content: str
+    pinned: bool
+    state: str
+    visibility: str
+    create_time: int
+    update_time: int
+    deleted_at: int | None
+    dirty: bool
+    synced_update_time: int | None
+
+
 class _Tx:
     """BEGIN IMMEDIATE ... COMMIT, so read-then-write sequences cannot race
     the other process."""
@@ -256,3 +272,116 @@ class Store:
                 sets = ", ".join(f"{k} = ?" for k in fields)
                 self._db.execute(f"UPDATE memo_local SET {sets} WHERE memo_id = ?",
                                  (*fields.values(), memo_id))
+
+    # -- sync ----------------------------------------------------------
+    # Every write takes the SyncRow the decision was based on and re-reads the
+    # row inside BEGIN IMMEDIATE: if the user edited it meanwhile the write is
+    # skipped (returns False/None) and the row stays dirty for the next run.
+
+    def sync_rows(self) -> list[SyncRow]:
+        return [self._to_sync_row(r) for r in self._db.execute(
+            "SELECT * FROM memo ORDER BY id")]
+
+    @staticmethod
+    def _to_sync_row(r: sqlite3.Row) -> SyncRow:
+        return SyncRow(r["id"], r["content"], bool(r["pinned"]), r["state"],
+                       r["visibility"], r["create_time"], r["update_time"],
+                       r["deleted_at"], bool(r["dirty"]), r["synced_update_time"])
+
+    def _current(self, memo_id: str) -> SyncRow | None:
+        r = self._db.execute("SELECT * FROM memo WHERE id = ?", (memo_id,)).fetchone()
+        return self._to_sync_row(r) if r else None
+
+    def _write_remote(self, memo_id: str, r) -> None:
+        self._db.execute(
+            "UPDATE memo SET content = ?, pinned = ?, state = ?, visibility = ?,"
+            " create_time = ?, update_time = ?, deleted_at = NULL, dirty = 0,"
+            " synced_update_time = ? WHERE id = ?",
+            (r.content, int(r.pinned), r.state, r.visibility, r.create_time,
+             r.update_time, r.update_time, memo_id))
+
+    def insert_remote(self, r) -> bool:
+        with self._tx():
+            if self._current(r.id):
+                return False
+            self._db.execute(
+                "INSERT INTO memo (id, content, pinned, state, visibility,"
+                " create_time, update_time, dirty, synced_update_time)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)",
+                (r.id, r.content, int(r.pinned), r.state, r.visibility,
+                 r.create_time, r.update_time, r.update_time))
+        return True
+
+    def apply_remote(self, base: SyncRow, r) -> bool:
+        """Overwrite the row with the server version; memo_local is untouched.
+        Also revives a tombstone (an edit beats a delete)."""
+        with self._tx():
+            if self._current(base.id) != base:
+                return False
+            self._write_remote(base.id, r)
+        return True
+
+    def mark_synced(self, base: SyncRow, r) -> bool:
+        with self._tx():
+            if self._current(base.id) != base:
+                return False
+            self._db.execute(
+                "UPDATE memo SET dirty = 0, synced_update_time = ? WHERE id = ?",
+                (r.update_time, base.id))
+        return True
+
+    def hard_delete(self, base: SyncRow) -> bool:
+        with self._tx():
+            if self._current(base.id) != base:
+                return False
+            self._db.execute("DELETE FROM memo WHERE id = ?", (base.id,))
+        return True
+
+    def duplicate_as_new(self, base: SyncRow, r) -> SyncRow | None:
+        """Conflict, keep both: the local version moves to a new never-synced
+        dirty row (memo_local copied), the original id takes the server's."""
+        new_id = uuid.uuid4().hex
+        with self._tx():
+            if self._current(base.id) != base:
+                return None
+            self._db.execute(
+                "INSERT INTO memo (id, content, pinned, state, visibility,"
+                " create_time, update_time, dirty)"
+                " SELECT ?, content, pinned, state, visibility, create_time, ?, 1"
+                " FROM memo WHERE id = ?", (new_id, _now_ms(), base.id))
+            self._db.execute(
+                "INSERT INTO memo_local (memo_id, title, color, reminder_at, position)"
+                " SELECT ?, title, color, reminder_at, position FROM memo_local"
+                " WHERE memo_id = ?", (new_id, base.id))
+            self._write_remote(base.id, r)
+            return self._current(new_id)
+
+    def finish_push(self, base: SyncRow, r) -> bool:
+        """Record the server's answer to a create/PATCH of `base`. If the
+        server assigned another id the row (and its memo_local) moves to it.
+        True if the row ended clean; False if it was edited during the push,
+        in which case the local fields win and it stays dirty."""
+        with self._tx():
+            cur = self._current(base.id)
+            if cur is None:
+                return False
+            if r.id != base.id:
+                self._move_id(base.id, r.id)
+            if cur.update_time != base.update_time:
+                self._db.execute(
+                    "UPDATE memo SET synced_update_time = ?, dirty = 1 WHERE id = ?",
+                    (r.update_time, r.id))
+                return False
+            self._write_remote(r.id, r)
+        return True
+
+    def _move_id(self, old: str, new: str) -> None:
+        # No ON UPDATE CASCADE: insert the parent under the new id, repoint
+        # the child, then drop the old parent.
+        self._db.execute(
+            "INSERT INTO memo (id, content, pinned, state, visibility, create_time,"
+            " update_time, deleted_at, dirty, synced_update_time)"
+            " SELECT ?, content, pinned, state, visibility, create_time, update_time,"
+            " deleted_at, dirty, synced_update_time FROM memo WHERE id = ?", (new, old))
+        self._db.execute("UPDATE memo_local SET memo_id = ? WHERE memo_id = ?", (new, old))
+        self._db.execute("DELETE FROM memo WHERE id = ?", (old,))
