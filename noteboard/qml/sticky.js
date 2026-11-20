@@ -24,26 +24,42 @@ function ink(hex) {
 }
 
 // Markdown folds a single newline into a space, but a sticky note (and Memos)
-// shows it as a line break. Display only: appends a hard break to a line
-// whose next line continues the same block, leaving blank-line paragraph
-// breaks, list items and fenced code alone.
+// shows it as a line break. Display only. Qt's Markdown reader turns a
+// "  \n" hard break into a new paragraph block with paragraph margins (a
+// pitch of ~1.27 wrapped lines), so plain text lines are instead joined with
+// U+2028, a real line break inside one block, at the same pitch as wrapping.
+// Blank-line paragraph breaks stay paragraphs. Lines that start or are
+// Markdown block syntax (lists, fences, headings, quotes, tables, rules,
+// indented code) keep the old "  \n" break so the syntax still parses.
+var LINE_SEP = "\u2028";
+
 function breakLines(text) {
     var lines = text.split("\n");
     var fenced = false;
     var fence = /^\s*(```|~~~)/;
     var item = /^\s*([-*+]|\d+[.)])\s/;
-    return lines.map(function (line, i) {
+    var syntax = /^(\s{4,}|\t|#{1,6}(\s|$)|>|\||\s*([-*_=])(\s*\3){2,}\s*$)/;
+    var out = "";
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
         var isFence = fence.test(line);
         if (isFence)
             fenced = !fenced;
-        if (i === lines.length - 1 || isFence || fenced)
-            return line;
+        if (i === lines.length - 1) {
+            out += line;
+            break;
+        }
         var next = lines[i + 1];
-        if (line.trim() === "" || next.trim() === "" || fence.test(next) || item.test(next)
-                || / {2}$|\\$/.test(line))
-            return line;
-        return line + "  ";
-    }).join("\n");
+        if (isFence || fenced || line.trim() === "" || next.trim() === ""
+                || fence.test(next) || item.test(next) || /\\$/.test(line)) {
+            out += line + "\n";
+        } else if (item.test(line) || syntax.test(line) || syntax.test(next)) {
+            out += (/ {2}$/.test(line) ? line : line + "  ") + "\n";
+        } else {
+            out += line.replace(/ {2}$/, "") + LINE_SEP;
+        }
+    }
+    return out;
 }
 
 // Placeholder and timestamps: the ink at reduced opacity (#AARRGGBB).

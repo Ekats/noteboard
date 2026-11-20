@@ -152,9 +152,46 @@ class MemoModel(QAbstractListModel):
 
     @Slot()
     def reload(self) -> None:
-        self.beginResetModel()
-        self._memos = self._store.memos()
-        self.endResetModel()
+        """Bring the rows in line with the store without a model reset.
+
+        A reset sends the ListView back to the top; diffing keeps the scroll
+        position across deletes, pins, edits and background syncs.
+        """
+        new = self._store.memos()
+        new_ids = {m.id for m in new}
+
+        row = len(self._memos) - 1
+        while row >= 0:
+            if self._memos[row].id in new_ids:
+                row -= 1
+                continue
+            first = row
+            while first > 0 and self._memos[first - 1].id not in new_ids:
+                first -= 1
+            self.beginRemoveRows(QModelIndex(), first, row)
+            del self._memos[first:row + 1]
+            self.endRemoveRows()
+            row = first - 1
+
+        for i, memo in enumerate(new):
+            if i < len(self._memos) and self._memos[i].id == memo.id:
+                if self._memos[i] != memo:
+                    self._memos[i] = memo
+                    self.dataChanged.emit(self.index(i), self.index(i))
+                continue
+            at = next((j for j in range(i + 1, len(self._memos))
+                       if self._memos[j].id == memo.id), None)
+            if at is None:
+                self.beginInsertRows(QModelIndex(), i, i)
+                self._memos.insert(i, memo)
+                self.endInsertRows()
+            else:
+                self.beginMoveRows(QModelIndex(), at, at, QModelIndex(), i)
+                self._memos.insert(i, self._memos.pop(at))
+                self.endMoveRows()
+                if self._memos[i] != memo:
+                    self._memos[i] = memo
+                    self.dataChanged.emit(self.index(i), self.index(i))
 
 
 class Draft(QObject):

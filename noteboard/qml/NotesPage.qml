@@ -182,13 +182,14 @@ Item {
             }
 
             // Small marker so pinned notes read as pinned without hover.
-            ToolButton {
+            ShadeButton {
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.margins: 2
                 width: 28
                 height: 28
-                padding: 0
+                base: card.fill
+                surfaceOpacity: innerOpacity
                 enabled: false
                 visible: card.pinned && !buttons.visible
                 icon.name: "pin"
@@ -204,39 +205,39 @@ Item {
                 anchors.margins: 2
                 visible: cardHover.hovered || card.editing
 
-                ToolButton {
+                ShadeButton {
                     width: 28
                     height: 28
-                    padding: 0
+                    base: card.fill
+                    surfaceOpacity: innerOpacity
                     icon.name: card.pinned ? "window-unpin" : "window-pin"
                     icon.width: 16
                     icon.height: 16
-                    icon.color: Sticky.ink(card.fill)
                     onClicked: togglePin(card.memoId, !card.pinned)
                     ToolTip.visible: hovered
                     ToolTip.text: card.pinned ? qsTr("Unpin") : qsTr("Pin")
                 }
-                ToolButton {
+                ShadeButton {
                     width: 28
                     height: 28
-                    padding: 0
+                    base: card.fill
+                    surfaceOpacity: innerOpacity
                     icon.name: "edit-delete"
                     icon.width: 16
                     icon.height: 16
-                    icon.color: Sticky.ink(card.fill)
                     onClicked: askDelete(card.memoId, card.content)
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Delete")
                 }
-                ToolButton {
+                ShadeButton {
                     id: editButton
                     width: 28
                     height: 28
-                    padding: 0
+                    base: card.fill
+                    surfaceOpacity: innerOpacity
                     icon.name: card.editing ? "dialog-ok-apply" : "document-edit"
                     icon.width: 16
                     icon.height: 16
-                    icon.color: Sticky.ink(card.fill)
                     onClicked: card.editing ? finishEdit() : startEdit(card.memoId)
                     ToolTip.visible: hovered
                     ToolTip.text: card.editing ? qsTr("Done") : qsTr("Edit")

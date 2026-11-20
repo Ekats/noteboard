@@ -298,11 +298,11 @@ Item {
                 width: 48
                 height: 48
                 enabled: note.text.trim().length > 0
-                opacity: enabled ? 1 : 0.45
                 icon.name: "document-send"
                 icon.width: 26
                 icon.height: 26
-                icon.color: Sticky.ink(stickyColor)
+                // Only the icon dims when blank: the background must stay visible.
+                icon.color: enabled ? Sticky.ink(stickyColor) : Qt.alpha(Sticky.ink(stickyColor), 0.45)
                 onClicked: draft.send()
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Send (Ctrl+Enter)")
@@ -312,7 +312,8 @@ Item {
                     readonly property bool light: Sticky.isLight(stickyColor)
                     readonly property real shade: sendButton.pressed ? 1.3
                         : sendButton.hovered ? 1.2 : 1.12
-                    color: light ? Qt.darker(stickyColor, shade) : Qt.lighter(stickyColor, shade + 0.1)
+                    color: Qt.alpha(light ? Qt.darker(stickyColor, shade)
+                                          : Qt.lighter(stickyColor, shade + 0.1), innerOpacity / 100)
                 }
             }
         }

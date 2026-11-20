@@ -20,7 +20,9 @@ Syncing runs on a worker thread at startup, 3 s after a local memo change,
 when the popup opens if the last run is over a minute old, every 10 minutes
 and on **Sync now**; overlapping triggers coalesce into one run. The note list
 reloads when a run changed something, after you finish editing a card if one
-is open.
+is open. A reload updates the list row by row (remove, insert, move) rather
+than resetting it, so the scroll position survives deletes, pins, edits and
+sync runs.
 
 Rules, ported from the MoeMemos apps:
 
