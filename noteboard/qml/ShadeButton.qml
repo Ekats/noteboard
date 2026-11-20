@@ -20,9 +20,7 @@ ToolButton {
         anchors.fill: parent
         anchors.margins: 2
         radius: width / 2
-        readonly property real shade: control.pressed ? 1.4 : control.hovered ? 1.3 : 1.2
-        color: Qt.alpha(Sticky.isLight(control.base) ? Qt.darker(control.base, shade)
-                                                     : Qt.lighter(control.base, shade + 0.1),
-                        control.surfaceOpacity / 100)
+        color: Sticky.buttonFill(control.base, control.pressed ? 2 : control.hovered ? 1 : 0,
+                                 control.surfaceOpacity / 100)
     }
 }

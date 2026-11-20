@@ -8,6 +8,44 @@ from PySide6.QtCore import (Property, QAbstractListModel, QModelIndex, QObject, 
 from noteboard.store import Store
 
 
+def _diff_rows(model: QAbstractListModel, rows: list, new: list) -> None:
+    """Turn `rows` into `new` in place, announcing removes, inserts, moves
+    and edits on `model` instead of resetting it. Rows need an `id`."""
+    new_ids = {r.id for r in new}
+
+    row = len(rows) - 1
+    while row >= 0:
+        if rows[row].id in new_ids:
+            row -= 1
+            continue
+        first = row
+        while first > 0 and rows[first - 1].id not in new_ids:
+            first -= 1
+        model.beginRemoveRows(QModelIndex(), first, row)
+        del rows[first:row + 1]
+        model.endRemoveRows()
+        row = first - 1
+
+    for i, item in enumerate(new):
+        if i < len(rows) and rows[i].id == item.id:
+            if rows[i] != item:
+                rows[i] = item
+                model.dataChanged.emit(model.index(i), model.index(i))
+            continue
+        at = next((j for j in range(i + 1, len(rows)) if rows[j].id == item.id), None)
+        if at is None:
+            model.beginInsertRows(QModelIndex(), i, i)
+            rows.insert(i, item)
+            model.endInsertRows()
+        else:
+            model.beginMoveRows(QModelIndex(), at, at, QModelIndex(), i)
+            rows.insert(i, rows.pop(at))
+            model.endMoveRows()
+            if rows[i] != item:
+                rows[i] = item
+                model.dataChanged.emit(model.index(i), model.index(i))
+
+
 class ClipModel(QAbstractListModel):
     ClipIdRole = Qt.ItemDataRole.UserRole + 1
     ContentRole = Qt.ItemDataRole.UserRole + 2
@@ -58,9 +96,9 @@ class ClipModel(QAbstractListModel):
 
     @Slot()
     def reload(self) -> None:
-        self.beginResetModel()
-        self._clips = self._store.clips()
-        self.endResetModel()
+        # Diffed, not reset: a reset sends the ListView back to the top, which
+        # would also break the popup's first-row pointer landing.
+        _diff_rows(self, self._clips, self._store.clips())
 
     @Slot(str)
     def add(self, text: str) -> None:
@@ -157,41 +195,7 @@ class MemoModel(QAbstractListModel):
         A reset sends the ListView back to the top; diffing keeps the scroll
         position across deletes, pins, edits and background syncs.
         """
-        new = self._store.memos()
-        new_ids = {m.id for m in new}
-
-        row = len(self._memos) - 1
-        while row >= 0:
-            if self._memos[row].id in new_ids:
-                row -= 1
-                continue
-            first = row
-            while first > 0 and self._memos[first - 1].id not in new_ids:
-                first -= 1
-            self.beginRemoveRows(QModelIndex(), first, row)
-            del self._memos[first:row + 1]
-            self.endRemoveRows()
-            row = first - 1
-
-        for i, memo in enumerate(new):
-            if i < len(self._memos) and self._memos[i].id == memo.id:
-                if self._memos[i] != memo:
-                    self._memos[i] = memo
-                    self.dataChanged.emit(self.index(i), self.index(i))
-                continue
-            at = next((j for j in range(i + 1, len(self._memos))
-                       if self._memos[j].id == memo.id), None)
-            if at is None:
-                self.beginInsertRows(QModelIndex(), i, i)
-                self._memos.insert(i, memo)
-                self.endInsertRows()
-            else:
-                self.beginMoveRows(QModelIndex(), at, at, QModelIndex(), i)
-                self._memos.insert(i, self._memos.pop(at))
-                self.endMoveRows()
-                if self._memos[i] != memo:
-                    self._memos[i] = memo
-                    self.dataChanged.emit(self.index(i), self.index(i))
+        _diff_rows(self, self._memos, self._store.memos())
 
 
 class Draft(QObject):

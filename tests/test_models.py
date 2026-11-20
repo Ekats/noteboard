@@ -2,8 +2,70 @@ import unittest
 from unittest import mock
 
 from noteboard import store as store_mod
-from noteboard.models import MemoModel
+from noteboard.models import ClipModel, MemoModel
 from noteboard.store import Store
+
+
+class ClipModelTest(unittest.TestCase):
+    def setUp(self):
+        ticks = iter(range(1000, 100000, 10))
+        patcher = mock.patch.object(store_mod, "_now_ms", lambda: next(ticks))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.s = Store(":memory:")
+        self.addCleanup(self.s.close)
+        self.ids = [self.s.add_clip(c, 0) for c in "abcde"]  # newest first: e..a
+        self.m = ClipModel(self.s)
+        self.seen = []
+        self.m.modelAboutToBeReset.connect(lambda: self.seen.append("reset"))
+        self.m.rowsAboutToBeRemoved.connect(
+            lambda _p, f, l: self.seen.append(("removed", f, l)))
+        self.m.rowsAboutToBeInserted.connect(
+            lambda _p, f, l: self.seen.append(("inserted", f, l)))
+        self.m.rowsAboutToBeMoved.connect(
+            lambda _p, f, _l, _d, r: self.seen.append(("moved", f, r)))
+
+    def test_remove_drops_one_row_without_reset(self):
+        self.m.remove(self.ids[2])  # "c", row 2
+        self.assertEqual(self.seen, [("removed", 2, 2)])
+        self.assertEqual(self.m._clips, self.s.clips())
+        self.assertEqual(self.m.rowCount(), 4)
+
+    def test_remove_pinned_clip(self):
+        self.s.set_clip_pinned(self.ids[0], True)
+        self.m.reload()
+        self.seen.clear()
+        self.m.remove(self.ids[0])
+        self.assertEqual(self.seen, [("removed", 0, 0)])
+        self.assertNotIn(self.ids[0], [c.id for c in self.m._clips])
+
+    def test_reload_without_changes_emits_nothing(self):
+        self.m.reload()
+        self.assertEqual(self.seen, [])
+
+    def test_pin_moves_row_without_reset(self):
+        self.m.setPinned(self.ids[1], True)  # "b" jumps to the top
+        self.assertEqual(self.seen, [("moved", 3, 0)])
+        self.assertEqual(self.m._clips, self.s.clips())
+
+    def test_recopy_moves_existing_row_to_top(self):
+        self.m.add("a")
+        self.assertNotIn("reset", self.seen)
+        self.assertEqual(self.m._clips, self.s.clips())
+        self.assertEqual(self.m._clips[0].content, "a")
+        self.assertEqual(self.m.rowCount(), 5)
+
+    def test_deleted_text_comes_back_as_new_entry(self):
+        self.m.remove(self.ids[0])
+        self.m.add("a")
+        self.assertEqual([c.content for c in self.m._clips], ["a", "e", "d", "c", "b"])
+        self.assertNotEqual(self.m._clips[0].id, self.ids[0])
+        self.assertEqual(self.m._clips, self.s.clips())
+
+    def test_limit_prune_matches_store(self):
+        self.m.limit = 2
+        self.assertEqual(self.m._clips, self.s.clips())
+        self.assertEqual(self.m.rowCount(), 2)
 
 
 class MemoModelTest(unittest.TestCase):

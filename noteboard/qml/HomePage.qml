@@ -26,6 +26,10 @@ Item {
     // than pixels so the split keeps following the font size.
     property real padLines: 0
 
+    // The list surface colour as "#RRGGBB". Read here, not in the delegate,
+    // whose own palette can differ from the one behind the surface.
+    readonly property string listBase: String(palette.base)
+
     readonly property real lineFactor: Sticky.lineFactor
     // Every row is two text lines tall, one-liners included, so the list
     // reads as an even grid and two-line entries show whole.
@@ -115,6 +119,7 @@ Item {
 
                 delegate: ItemDelegate {
                     id: row
+                    required property int clipId
                     required property string content
                     required property bool pinned
 
@@ -192,6 +197,29 @@ Item {
                             icon.width: twoLines - 6
                             icon.height: twoLines - 6
                             onClicked: row.expanded = !row.expanded
+                        }
+
+                        // Its slot is always reserved so the ellipsis and
+                        // arrow never shift; hidden = transparent and
+                        // disabled, so it cannot be hit unseen. Own clicks,
+                        // so deleting never pastes or closes. No confirm:
+                        // clips are disposable history.
+                        ShadeButton {
+                            id: removeButton
+                            Layout.alignment: Qt.AlignTop
+                            Layout.preferredWidth: twoLines
+                            Layout.preferredHeight: twoLines
+                            readonly property bool shown: row.hovered || hovered
+                            opacity: shown ? 1 : 0
+                            enabled: shown
+                            base: listBase
+                            surfaceOpacity: innerOpacity
+                            icon.name: "edit-delete"
+                            icon.width: 16
+                            icon.height: 16
+                            onClicked: clipModel.remove(row.clipId)
+                            ToolTip.visible: hovered
+                            ToolTip.text: qsTr("Remove from history")
                         }
                     }
                 }
@@ -309,11 +337,8 @@ Item {
 
                 background: Rectangle {
                     radius: width / 2
-                    readonly property bool light: Sticky.isLight(stickyColor)
-                    readonly property real shade: sendButton.pressed ? 1.3
-                        : sendButton.hovered ? 1.2 : 1.12
-                    color: Qt.alpha(light ? Qt.darker(stickyColor, shade)
-                                          : Qt.lighter(stickyColor, shade + 0.1), innerOpacity / 100)
+                    color: Sticky.buttonFill(stickyColor,
+                        sendButton.pressed ? 2 : sendButton.hovered ? 1 : 0, innerOpacity / 100)
                 }
             }
         }

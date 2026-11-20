@@ -23,6 +23,16 @@ function ink(hex) {
     return isLight(hex) ? "#1d1b16" : "#f4f1e8";
 }
 
+// Fill of a round button on a surface given as "#RRGGBB": an off-shade, darker
+// on light surfaces and lighter on dark ones (which need the extra 0.1 to read
+// as much). level 0 = rest, 1 = hovered, 2 = pressed. The one place the
+// button shade steps live, shared by ShadeButton and the Capture send button.
+function buttonFill(hex, level, opacity) {
+    var shade = [1.3, 1.4, 1.5][level];
+    return Qt.alpha(isLight(hex) ? Qt.darker(hex, shade) : Qt.lighter(hex, shade + 0.1),
+                    opacity);
+}
+
 // Markdown folds a single newline into a space, but a sticky note (and Memos)
 // shows it as a line break. Display only. Qt's Markdown reader turns a
 // "  \n" hard break into a new paragraph block with paragraph margins (a
