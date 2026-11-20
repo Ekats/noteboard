@@ -83,15 +83,22 @@ Window {
         leaveTimer.stop();  // a close pending from the last show must not fire
         if (visible) {
             leaveArmed = false;
+            // place() reloaded the list already, so only drop the state.
+            notes.editingId = "";
             Qt.callLater(focusPad);
+        } else {
+            notes.finishEdit();
         }
     }
 
     // The surface is recreated and activated asynchronously after each show,
     // and the daemon sets the page around it, so every trigger funnels here
-    // and only acts once all of visible, active and Capture hold.
+    // and only acts once visible and active hold. Off Capture the hidden pad
+    // would otherwise keep the keyboard focus and swallow typing.
     function focusPad() {
-        if (visible && active && pages.currentIndex === 0) home.focusPad();
+        if (!visible || !active) return;
+        if (pages.currentIndex === 0) home.focusPad();
+        else home.releaseFocus();
     }
     onActiveChanged: focusPad()
 
@@ -291,7 +298,10 @@ Window {
                 id: pages
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                onCurrentIndexChanged: Qt.callLater(popup.focusPad)
+                onCurrentIndexChanged: {
+                    if (currentIndex !== 1) notes.finishEdit();
+                    Qt.callLater(popup.focusPad);
+                }
 
                 HomePage {
                     id: home
@@ -344,8 +354,10 @@ Window {
 
     // Esc dismisses. With an exclusive keyboard grab this is the only way
     // out from the keyboard, so it must exist before the window is shown.
+    // A shortcut runs before any item's key handler, so the edit-in-progress
+    // case is decided here: Esc ends the edit first, and only then closes.
     Shortcut {
         sequence: "Escape"
-        onActivated: popup.visible = false
+        onActivated: if (notes.editing) notes.finishEdit(); else popup.visible = false
     }
 }

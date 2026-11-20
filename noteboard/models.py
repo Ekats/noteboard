@@ -1,5 +1,7 @@
 """Qt list models over the store."""
 
+from dataclasses import replace
+
 from PySide6.QtCore import (Property, QAbstractListModel, QModelIndex, QObject, Qt,
                             Signal, Slot)
 
@@ -116,6 +118,21 @@ class MemoModel(QAbstractListModel):
         if role == self.ColorRole:
             return memo.color or ""
         return None
+
+    @Slot(str, str)
+    def setContent(self, memo_id: str, text: str) -> None:
+        """Write an edit through without touching the list.
+
+        No reset or reorder: the card is being edited under the cursor, and
+        the view reloads once editing ends. The cached row is updated so a
+        reload-free rebuild of the delegate still shows the new text.
+        """
+        for i, memo in enumerate(self._memos):
+            if memo.id == memo_id:
+                if memo.content != text:
+                    self._store.update_memo(memo_id, content=text)
+                    self._memos[i] = replace(memo, content=text)
+                return
 
     @Slot()
     def reload(self) -> None:

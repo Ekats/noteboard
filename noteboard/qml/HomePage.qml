@@ -53,6 +53,12 @@ Item {
         note.cursorPosition = note.length;
     }
 
+    // A hidden page's item keeps its focus, so typing on another page would
+    // still land in the pad.
+    function releaseFocus() {
+        if (note.activeFocus) note.focus = false;
+    }
+
     FontMetrics {
         id: fm
         font.pointSize: fontSize
