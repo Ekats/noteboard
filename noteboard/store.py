@@ -210,8 +210,14 @@ class Store:
         return memo_id
 
     def update_memo(self, memo_id: str, *, content: str | None = None,
-                    pinned: bool | None = None, state: str | None = None) -> None:
-        sets, args = ["update_time = ?", "dirty = 1"], [_now_ms()]
+                    pinned: bool | None = None, state: str | None = None,
+                    touch: bool = True) -> None:
+        # touch=False: a pin change is not an edit, so the card keeps its
+        # recency (and shown time) and only changes group.
+        sets, args = ["dirty = 1"], []
+        if touch:
+            sets.insert(0, "update_time = ?")
+            args.append(_now_ms())
         for column, value in (("content", content),
                               ("pinned", None if pinned is None else int(pinned)),
                               ("state", state)):

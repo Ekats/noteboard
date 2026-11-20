@@ -87,6 +87,7 @@ Window {
             notes.editingId = "";
             Qt.callLater(focusPad);
         } else {
+            notes.cancelDelete();
             notes.finishEdit();
         }
     }
@@ -374,6 +375,8 @@ Window {
     // case is decided here: Esc ends the edit first, and only then closes.
     Shortcut {
         sequence: "Escape"
+        // The delete dialog handles its own Escape.
+        enabled: !notes.confirming
         onActivated: if (notes.editing) notes.finishEdit(); else popup.visible = false
     }
 }

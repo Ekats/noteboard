@@ -96,6 +96,18 @@ class StoreTest(unittest.TestCase):
         dirty = self.s._db.execute("SELECT dirty FROM memo").fetchone()[0]
         self.assertEqual(dirty, 1)
 
+    def test_pin_without_touch_keeps_time_and_marks_dirty(self):
+        a = self.s.create_memo("a")
+        self.s.create_memo("b")
+        self.s._db.execute("UPDATE memo SET dirty = 0")
+        before = {m.id: m.update_time for m in self.s.memos()}
+        self.s.update_memo(a, pinned=True, touch=False)
+        memos = self.s.memos()
+        self.assertEqual([m.content for m in memos], ["a", "b"])
+        self.assertEqual(memos[0].update_time, before[a])
+        self.assertEqual(self.s._db.execute(
+            "SELECT dirty FROM memo WHERE id = ?", (a,)).fetchone()[0], 1)
+
     def test_delete_memo_is_tombstone(self):
         mid = self.s.create_memo("x")
         self.s.delete_memo(mid)

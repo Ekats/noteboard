@@ -134,6 +134,22 @@ class MemoModel(QAbstractListModel):
                     self._memos[i] = replace(memo, content=text)
                 return
 
+    @Slot(str, bool)
+    def setPinned(self, memo_id: str, pinned: bool) -> None:
+        """Pin or unpin without reordering; the caller reloads when safe."""
+        for i, memo in enumerate(self._memos):
+            if memo.id == memo_id:
+                if memo.pinned != pinned:
+                    self._store.update_memo(memo_id, pinned=pinned, touch=False)
+                    self._memos[i] = replace(memo, pinned=pinned)
+                return
+
+    @Slot(str)
+    def remove(self, memo_id: str) -> None:
+        """Tombstone the memo (sync deletes it remotely) and drop the row."""
+        self._store.delete_memo(memo_id)
+        self.reload()
+
     @Slot()
     def reload(self) -> None:
         self.beginResetModel()

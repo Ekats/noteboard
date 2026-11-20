@@ -23,6 +23,11 @@ Item {
     // yank the card from under the cursor.
     property bool edited: false
 
+    // The memo awaiting delete confirmation; empty = no dialog.
+    property string deleteId: ""
+    property string deleteExcerpt: ""
+    readonly property bool confirming: confirmDialog.opened
+
     function startEdit(id) {
         editingId = id;
     }
@@ -36,8 +41,33 @@ Item {
         }
     }
 
-    // A tap anywhere but the editing card (or any card's edit button, which
-    // handles itself) ends the edit; the card cannot know, as taps outside
+    function togglePin(id, pinned) {
+        memoModel.setPinned(id, pinned);
+        // Like an edit, the regroup waits so the editing card stays put.
+        if (editing) edited = true; else memoModel.reload();
+    }
+
+    function askDelete(id, content) {
+        deleteId = id;
+        const flat = content.replace(/\s+/g, " ").trim();
+        deleteExcerpt = flat.length > 80 ? flat.slice(0, 80) + "…" : flat;
+        confirmDialog.open();
+    }
+
+    function cancelDelete() {
+        confirmDialog.close();
+    }
+
+    function confirmDelete() {
+        const id = deleteId;
+        confirmDialog.close();
+        // Flush a pending edit's reload first so the removal is the last write.
+        finishEdit();
+        memoModel.remove(id);
+    }
+
+    // A tap anywhere but the editing card (or any card's buttons, which
+    // handle themselves) ends the edit; the card cannot know, as taps outside
     // it never reach it.
     TapHandler {
         onTapped: eventPoint => {
@@ -46,7 +76,7 @@ Item {
             const y = eventPoint.position.y + list.contentY;
             const hit = list.itemAt(x, y);
             if (hit && (hit.memoId === editingId
-                    || hit.onEditButton(x - hit.x, y - hit.y))) return;
+                    || hit.onButton(x - hit.x, y - hit.y))) return;
             finishEdit();
         }
     }
@@ -64,14 +94,15 @@ Item {
             required property string content
             required property double updateTime
             required property string noteColor  // empty: follow the default
+            required property bool pinned
 
             // A per-note colour wins; otherwise the setting applies.
             readonly property string fill: noteColor !== "" ? noteColor : stickyColor
             readonly property bool editing: memoId === editingId
 
-            function onEditButton(px, py) {
-                return px >= editButton.x && px < editButton.x + editButton.width
-                    && py >= editButton.y && py < editButton.y + editButton.height;
+            function onButton(px, py) {
+                return buttons.visible && px >= buttons.x && px < buttons.x + buttons.width
+                    && py >= buttons.y && py < buttons.y + buttons.height;
             }
 
             width: ListView.view.width
@@ -150,22 +181,66 @@ Item {
                 }
             }
 
+            // Small marker so pinned notes read as pinned without hover.
             ToolButton {
-                id: editButton
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.margins: 2
                 width: 28
                 height: 28
                 padding: 0
+                enabled: false
+                visible: card.pinned && !buttons.visible
+                icon.name: "pin"
+                icon.width: 14
+                icon.height: 14
+                icon.color: Sticky.muted(card.fill)
+            }
+
+            Row {
+                id: buttons
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 2
                 visible: cardHover.hovered || card.editing
-                icon.name: card.editing ? "dialog-ok-apply" : "document-edit"
-                icon.width: 16
-                icon.height: 16
-                icon.color: Sticky.ink(card.fill)
-                onClicked: card.editing ? finishEdit() : startEdit(card.memoId)
-                ToolTip.visible: hovered
-                ToolTip.text: card.editing ? qsTr("Done") : qsTr("Edit")
+
+                ToolButton {
+                    width: 28
+                    height: 28
+                    padding: 0
+                    icon.name: card.pinned ? "window-unpin" : "window-pin"
+                    icon.width: 16
+                    icon.height: 16
+                    icon.color: Sticky.ink(card.fill)
+                    onClicked: togglePin(card.memoId, !card.pinned)
+                    ToolTip.visible: hovered
+                    ToolTip.text: card.pinned ? qsTr("Unpin") : qsTr("Pin")
+                }
+                ToolButton {
+                    width: 28
+                    height: 28
+                    padding: 0
+                    icon.name: "edit-delete"
+                    icon.width: 16
+                    icon.height: 16
+                    icon.color: Sticky.ink(card.fill)
+                    onClicked: askDelete(card.memoId, card.content)
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Delete")
+                }
+                ToolButton {
+                    id: editButton
+                    width: 28
+                    height: 28
+                    padding: 0
+                    icon.name: card.editing ? "dialog-ok-apply" : "document-edit"
+                    icon.width: 16
+                    icon.height: 16
+                    icon.color: Sticky.ink(card.fill)
+                    onClicked: card.editing ? finishEdit() : startEdit(card.memoId)
+                    ToolTip.visible: hovered
+                    ToolTip.text: card.editing ? qsTr("Done") : qsTr("Edit")
+                }
             }
 
             OutlineLabel {
@@ -187,5 +262,42 @@ Item {
         visible: list.count === 0
         text: qsTr("No notes yet — send one from Capture")
         color: palette.placeholderText
+    }
+
+    // Modal inside the window: a second window could not take focus under
+    // layer-shell. Escape closes only this (Popup.qml's shortcut stands down).
+    Dialog {
+        id: confirmDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        title: qsTr("Delete this note?")
+        closePolicy: Popup.CloseOnEscape
+        width: Math.min(parent.width - 24, 320)
+
+        contentItem: Label {
+            text: deleteExcerpt
+            wrapMode: Text.Wrap
+            maximumLineCount: 3
+            elide: Text.ElideRight
+        }
+        footer: DialogButtonBox {
+            Button {
+                text: qsTr("Cancel")
+                highlighted: true
+                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+                onClicked: cancelDelete()
+            }
+            Button {
+                id: deleteConfirm
+                text: qsTr("Delete")
+                DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+                palette.button: "#c0392b"
+                palette.buttonText: "white"
+                onClicked: confirmDelete()
+            }
+        }
+        // Cancel is the default so a stray Enter cannot delete.
+        onOpened: footer.itemAt(0).forceActiveFocus()
     }
 }
