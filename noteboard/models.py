@@ -76,39 +76,77 @@ class ClipModel(QAbstractListModel):
         self.reload()
 
 
-class LatestMemo(QObject):
-    """The most recently edited sticky, as one editable text.
+class MemoModel(QAbstractListModel):
+    MemoIdRole = Qt.ItemDataRole.UserRole + 1
+    ContentRole = Qt.ItemDataRole.UserRole + 2
+    PinnedRole = Qt.ItemDataRole.UserRole + 3
+    UpdateTimeRole = Qt.ItemDataRole.UserRole + 4
+    ColorRole = Qt.ItemDataRole.UserRole + 5
+
+    def __init__(self, store: Store, parent=None):
+        super().__init__(parent)
+        self._store = store
+        self._memos = store.memos()
+
+    def roleNames(self):
+        return {
+            self.MemoIdRole: b"memoId",
+            self.ContentRole: b"content",
+            self.PinnedRole: b"pinned",
+            self.UpdateTimeRole: b"updateTime",  # unix ms
+            # Not "color": that would clash with the delegate's own property.
+            self.ColorRole: b"noteColor",
+        }
+
+    def rowCount(self, parent=QModelIndex()):
+        return 0 if parent.isValid() else len(self._memos)
+
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        if not index.isValid() or not 0 <= index.row() < len(self._memos):
+            return None
+        memo = self._memos[index.row()]
+        if role == self.MemoIdRole:
+            return memo.id
+        if role == self.ContentRole:
+            return memo.content
+        if role == self.PinnedRole:
+            return memo.pinned
+        if role == self.UpdateTimeRole:
+            return memo.update_time
+        if role == self.ColorRole:
+            return memo.color or ""
+        return None
+
+    @Slot()
+    def reload(self) -> None:
+        self.beginResetModel()
+        self._memos = self._store.memos()
+        self.endResetModel()
+
+
+class Draft(QObject):
+    """The capture pad's unsent text.
 
     Edits are written straight to the local store; only a future server push
     is meant to be debounced.
     """
 
-    memoIdChanged = Signal()
     contentChanged = Signal()
+    sent = Signal()
 
     def __init__(self, store: Store, parent=None):
         super().__init__(parent)
         self._store = store
-        self._memo_id = ""
-        self._content = ""
-        self.reload()
-
-    def _get_memo_id(self) -> str:
-        return self._memo_id
+        self._content = store.draft()
 
     def _get_content(self) -> str:
         return self._content
 
-    memoId = Property(str, _get_memo_id, notify=memoIdChanged)
     content = Property(str, _get_content, notify=contentChanged)
 
     @Slot()
     def reload(self) -> None:
-        memo = self._store.latest_memo()
-        memo_id, content = (memo.id, memo.content) if memo else ("", "")
-        if memo_id != self._memo_id:
-            self._memo_id = memo_id
-            self.memoIdChanged.emit()
+        content = self._store.draft()
         if content != self._content:
             self._content = content
             self.contentChanged.emit()
@@ -120,11 +158,13 @@ class LatestMemo(QObject):
         # No contentChanged on a real edit: the view already shows the text.
         if text == self._content:
             return
-        if self._memo_id:
-            self._store.update_memo(self._memo_id, content=text)
-        elif text.strip():
-            self._memo_id = self._store.create_memo(text)
-            self.memoIdChanged.emit()
-        else:
-            return
+        self._store.set_draft(text)
         self._content = text
+
+    @Slot()
+    def send(self) -> None:
+        if self._store.send_draft() is None:
+            return
+        self._content = ""
+        self.contentChanged.emit()
+        self.sent.emit()

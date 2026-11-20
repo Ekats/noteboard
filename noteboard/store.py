@@ -40,6 +40,14 @@ _MIGRATIONS = [
       position INTEGER
     );
     """,
+    # v2
+    """
+    CREATE TABLE draft (                -- the capture pad's unsent text; never synced
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      content TEXT NOT NULL,
+      update_time INTEGER NOT NULL
+    );
+    """,
 ]
 
 _UNSET = object()
@@ -212,16 +220,29 @@ class Store:
                      r["title"], r["color"], r["reminder_at"], r["position"])
                 for r in rows]
 
-    def latest_memo(self) -> Memo | None:
-        # Not pinned-first like memos(): "latest" means most recently edited.
-        r = self._db.execute(
-            "SELECT m.*, l.title, l.color, l.reminder_at, l.position"
-            " FROM memo m LEFT JOIN memo_local l ON l.memo_id = m.id"
-            " WHERE m.deleted_at IS NULL AND m.state = 'NORMAL'"
-            " ORDER BY m.update_time DESC, m.id LIMIT 1").fetchone()
-        return r and Memo(r["id"], r["content"], bool(r["pinned"]), r["state"],
-                          r["visibility"], r["create_time"], r["update_time"],
-                          r["title"], r["color"], r["reminder_at"], r["position"])
+    # -- draft ---------------------------------------------------------
+
+    def draft(self) -> str:
+        r = self._db.execute("SELECT content FROM draft WHERE id = 1").fetchone()
+        return r["content"] if r else ""
+
+    def set_draft(self, text: str) -> None:
+        self._db.execute(
+            "INSERT INTO draft (id, content, update_time) VALUES (1, ?, ?)"
+            " ON CONFLICT(id) DO UPDATE SET content = excluded.content,"
+            " update_time = excluded.update_time", (text, _now_ms()))
+
+    def send_draft(self) -> str | None:
+        """Turn the draft into a memo and empty it; None if it is blank."""
+        with self._tx():
+            text = self.draft().strip()
+            if not text:
+                return None
+            memo_id = self.create_memo(text)
+            self.set_draft("")
+        return memo_id
+
+    # -- memo local fields ---------------------------------------------
 
     def set_memo_local(self, memo_id: str, *, title=_UNSET, color=_UNSET,
                        reminder_at=_UNSET, position=_UNSET) -> None:

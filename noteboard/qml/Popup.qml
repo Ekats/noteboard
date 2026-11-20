@@ -60,6 +60,7 @@ Window {
         property bool closeOnMouseLeave: false
         property int historyLimit: 500  // 0 = unlimited
         property int fontSize: 12  // points, clips and sticky
+        property string stickyColor: "#af9659"  // default for the pad and notes without their own
     }
 
     Binding {
@@ -98,30 +99,62 @@ Window {
             anchors.margins: 4
             spacing: 4
 
-            RowLayout {
+            Item {
                 id: topBar
                 Layout.fillWidth: true
-                spacing: 0
+                implicitHeight: Math.max(settingsButton.implicitHeight, tabs.implicitHeight)
 
                 ToolButton {
-                    icon.name: "go-home"
-                    checked: pages.currentIndex === 0
-                    onClicked: pages.currentIndex = 0
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Clipboard")
-                }
-
-                ToolButton {
+                    id: settingsButton
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
                     icon.name: "settings-configure"
-                    checked: pages.currentIndex === 1
-                    onClicked: pages.currentIndex = 1
+                    checked: pages.currentIndex === 2
+                    onClicked: pages.currentIndex = 2
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Settings")
                 }
 
-                Item { Layout.fillWidth: true }
+                // Centred on the popup rather than in the space between the
+                // buttons, hence anchors instead of layout slots.
+                TabBar {
+                    id: tabs
+                    // Fixed so the labels are not elided to the TabBar's
+                    // initial implicit width.
+                    width: 220
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    TabButton {
+                        id: captureTab
+                        text: qsTr("Capture")
+                        onClicked: pages.currentIndex = 0
+                    }
+                    TabButton {
+                        id: notesTab
+                        text: qsTr("Notes")
+                        onClicked: pages.currentIndex = 1
+                    }
+                }
+
+                // Driven per button, not through TabBar.currentIndex: -1
+                // there leaves the old tab looking checked. A click assigns
+                // checked, which would drop a plain binding; Binding keeps
+                // following the page. Neither tab is checked on settings.
+                Binding {
+                    target: captureTab
+                    property: "checked"
+                    value: pages.currentIndex === 0
+                }
+                Binding {
+                    target: notesTab
+                    property: "checked"
+                    value: pages.currentIndex === 1
+                }
 
                 ToolButton {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
                     icon.name: "window-close"
                     onClicked: popup.visible = false
                     ToolTip.visible: hovered
@@ -137,7 +170,12 @@ Window {
                 HomePage {
                     id: home
                     fontSize: config.fontSize
+                    stickyColor: config.stickyColor
                     onPicked: popup.visible = false
+                }
+                NotesPage {
+                    fontSize: config.fontSize
+                    stickyColor: config.stickyColor
                 }
                 SettingsPage { config: config }
             }

@@ -6,6 +6,10 @@ Item {
     // The QtCore Settings object owned by Popup.qml, so values persist.
     required property var config
 
+    // The default first, then lighter and darker tones.
+    readonly property var stickyColors: ["#af9659", "#e6b8b0", "#e8d48a", "#a8d5ba",
+                                         "#a9c7e8", "#c9b1e8", "#4a4f57", "#5a3a55"]
+
     // 0 means unlimited.
     readonly property var historySteps: [50, 100, 250, 500, 1000, 2500, 5000, 0]
 
@@ -30,6 +34,52 @@ Item {
                 to: 24
                 value: config.fontSize
                 onValueModified: config.fontSize = value
+            }
+        }
+
+        Label { text: qsTr("Sticky colour") }
+
+        // Inline on purpose: a ColorDialog would be a second window, and with
+        // layer-shell integration global to the process it could not take focus.
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+
+            Repeater {
+                model: stickyColors
+
+                Rectangle {
+                    required property string modelData
+                    readonly property bool selected: modelData === config.stickyColor.toLowerCase()
+
+                    Layout.preferredWidth: 26
+                    Layout.preferredHeight: 26
+                    radius: 13
+                    color: modelData
+                    border.width: selected ? 3 : 1
+                    border.color: selected ? palette.highlight : palette.mid
+
+                    TapHandler { onTapped: config.stickyColor = parent.modelData }
+                }
+            }
+
+            Item { Layout.fillWidth: true }
+
+            TextField {
+                id: hex
+                Layout.preferredWidth: 90
+                text: config.stickyColor
+                maximumLength: 7
+                validator: RegularExpressionValidator { regularExpression: /#[0-9a-fA-F]{6}/ }
+                // editingFinished does not fire for an unacceptable value, so
+                // an invalid entry is reverted when focus leaves instead.
+                onEditingFinished: config.stickyColor = text.toLowerCase()
+                onActiveFocusChanged: if (!activeFocus) text = config.stickyColor
+
+                Connections {
+                    target: config
+                    function onStickyColorChanged() { hex.text = config.stickyColor }
+                }
             }
         }
 

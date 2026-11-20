@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.impl
 import QtQuick.Layouts
+import "sticky.js" as Sticky
 
 // Clipboard history on top, the latest sticky below. The popup aims the
 // pointer at the middle of the first row, so it reads rowHeight to compute
@@ -9,6 +10,8 @@ import QtQuick.Layouts
 Item {
     // Point size for the clips and the sticky; set from the font setting.
     property real fontSize: 12
+    // Background of the draft pad; set from the sticky colour setting.
+    property string stickyColor: "#af9659"
 
     // Every row is two text lines tall, one-liners included, so the list
     // reads as an even grid and two-line entries show whole.
@@ -123,27 +126,53 @@ Item {
             }
         }
 
+        // Sticky-coloured pad; text stays near-black whatever the theme.
         Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: palette.mid
-        }
-
-        ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.preferredHeight: 1
+            radius: 8
+            color: stickyColor
 
-            TextArea {
-                id: note
-                wrapMode: TextArea.Wrap
-                font.pointSize: fontSize
-                placeholderText: qsTr("Write a note…")
-                text: latestMemo.content
-                // Written through on every edit. A reload that changes the
-                // text comes back here too, but setContent ignores a value
-                // that already matches the memo.
-                onTextChanged: latestMemo.setContent(text)
+            ScrollView {
+                anchors.fill: parent
+                // Keeps the last lines clear of the send button.
+                anchors.bottomMargin: sendButton.height
+
+                TextArea {
+                    id: note
+                    wrapMode: TextArea.Wrap
+                    font.pointSize: fontSize
+                    color: Sticky.ink(stickyColor)
+                    background: null  // the pad supplies the colour
+                    placeholderTextColor: Sticky.muted(stickyColor)
+                    placeholderText: qsTr("Write a note…")
+                    text: draft.content
+                    // Written through on every edit. A reload that changes the
+                    // text comes back here too, but setContent ignores a value
+                    // that already matches the draft.
+                    onTextChanged: draft.setContent(text)
+                    Keys.onPressed: event => {
+                        if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                                && (event.modifiers & Qt.ControlModifier)) {
+                            draft.send();
+                            event.accepted = true;
+                        }
+                    }
+                }
+            }
+
+            ToolButton {
+                id: sendButton
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 4
+                enabled: note.text.trim().length > 0
+                icon.name: "document-send"
+                icon.color: Sticky.ink(stickyColor)
+                onClicked: draft.send()
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Send (Ctrl+Enter)")
             }
         }
     }

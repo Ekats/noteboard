@@ -18,7 +18,7 @@ from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 
 from noteboard.clipboard import WaylandClipboard  # noqa: E402
 from noteboard.kwin import KWinScript  # noqa: E402
-from noteboard.models import ClipModel, LatestMemo  # noqa: E402
+from noteboard.models import ClipModel, Draft, MemoModel # noqa: E402
 from noteboard.paste import Paster, PortalKeyboard  # noqa: E402
 from noteboard.service import PopupService  # noqa: E402
 from noteboard.store import Store  # noqa: E402
@@ -42,7 +42,9 @@ def main() -> int:
         QStandardPaths.StandardLocation.GenericDataLocation)) / "noteboard"
     store = Store(data_dir / "noteboard.db")
     clip_model = ClipModel(store)  # referenced here so it is not collected
-    latest_memo = LatestMemo(store)
+    draft = Draft(store)
+    memo_model = MemoModel(store)
+    draft.sent.connect(memo_model.reload)
 
     clipboard = WaylandClipboard()
     clipboard.changed.connect(clip_model.add)
@@ -53,7 +55,8 @@ def main() -> int:
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("clipModel", clip_model)
     engine.rootContext().setContextProperty("paster", paster)
-    engine.rootContext().setContextProperty("latestMemo", latest_memo)
+    engine.rootContext().setContextProperty("draft", draft)
+    engine.rootContext().setContextProperty("memoModel", memo_model)
     engine.load(QML_DIR / "Popup.qml")
     roots = engine.rootObjects()
     if not roots:
@@ -98,7 +101,8 @@ def main() -> int:
         # No cross-process change notification yet, so pick up rows written
         # by other processes (the board) on every show.
         clip_model.reload()
-        latest_memo.reload()
+        draft.reload()
+        memo_model.reload()
         window.setVisible(True)
         window.requestActivate()
 

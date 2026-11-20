@@ -1,3 +1,4 @@
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -48,19 +49,6 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(len(self.s.clips()), 4)
         # Pinned rows keep their group; the bump is within the unpinned one.
         self.assertEqual(self.contents(), ["pinned", "old", "new", "mid"])
-
-    def test_latest_memo_is_newest_live_normal(self):
-        self.assertIsNone(self.s.latest_memo())
-        a = self.s.create_memo("a", pinned=True)
-        b = self.s.create_memo("b")
-        c = self.s.create_memo("c")
-        self.assertEqual(self.s.latest_memo().id, c)
-        self.s.update_memo(b, content="b2")  # an edit makes it the latest
-        self.assertEqual(self.s.latest_memo().content, "b2")
-        self.s.update_memo(b, state="ARCHIVED")
-        self.assertEqual(self.s.latest_memo().id, c)
-        self.s.delete_memo(c)
-        self.assertEqual(self.s.latest_memo().id, a)  # pin does not outrank recency
 
     def test_empty_ignored(self):
         self.assertIsNone(self.s.add_clip("", 0))
@@ -129,6 +117,41 @@ class StoreTest(unittest.TestCase):
         c = self.s.create_memo("c", pinned=True)
         self.assertEqual([m.id for m in self.s.memos()], [c, b, a])
 
+    def test_memo_order_with_sent_draft(self):
+        pinned = self.s.create_memo("p", pinned=True)
+        old = self.s.create_memo("old")
+        self.s.set_draft("  new one \n")
+        sent = self.s.send_draft()
+        self.assertEqual([m.id for m in self.s.memos()], [pinned, sent, old])
+
+    def test_draft_round_trip(self):
+        self.assertEqual(self.s.draft(), "")
+        self.s.set_draft("first")
+        self.s.set_draft(" second\n")
+        self.assertEqual(self.s.draft(), " second\n")
+
+    def test_send_draft_creates_trimmed_memo_and_clears(self):
+        self.s.set_draft("\n  # hi\n- a  \n")
+        mid = self.s.send_draft()
+        self.assertEqual([(m.id, m.content) for m in self.s.memos()],
+                         [(mid, "# hi\n- a")])
+        self.assertEqual(self.s.draft(), "")
+
+    def test_send_blank_draft_is_none(self):
+        self.assertIsNone(self.s.send_draft())
+        self.s.set_draft(" \n\t")
+        self.assertIsNone(self.s.send_draft())
+        self.assertEqual(self.s.memos(), [])
+        self.assertEqual(self.s.draft(), " \n\t")
+
+    def test_send_draft_is_atomic(self):
+        self.s.set_draft("keep me")
+        with mock.patch.object(Store, "create_memo", side_effect=RuntimeError):
+            with self.assertRaises(RuntimeError):
+                self.s.send_draft()
+        self.assertEqual(self.s.draft(), "keep me")
+        self.assertFalse(self.s._db.in_transaction)
+
     def test_memo_local_upsert_and_cascade(self):
         mid = self.s.create_memo("x")
         self.s.set_memo_local(mid, title="T")
@@ -151,13 +174,30 @@ class FileStoreTest(unittest.TestCase):
 
     def test_migration_version_and_idempotent_reopen(self):
         s = Store(self.path)
-        self.assertEqual(s._db.execute("PRAGMA user_version").fetchone()[0], 1)
+        self.assertEqual(s._db.execute("PRAGMA user_version").fetchone()[0], 2)
         s.add_clip("keep", 0)
         s.close()
         s = Store(self.path)
         self.addCleanup(s.close)
-        self.assertEqual(s._db.execute("PRAGMA user_version").fetchone()[0], 1)
+        self.assertEqual(s._db.execute("PRAGMA user_version").fetchone()[0], 2)
         self.assertEqual([c.content for c in s.clips()], ["keep"])
+
+    def test_v1_database_migrates_keeping_rows(self):
+        self.path.parent.mkdir(parents=True)
+        db = sqlite3.connect(self.path)
+        db.executescript(store_mod._MIGRATIONS[0] + "PRAGMA user_version=1;")
+        db.execute("INSERT INTO clip (content, content_hash, created_at, last_used_at)"
+                   " VALUES ('c', 'h', 1, 1)")
+        db.execute("INSERT INTO memo (id, content, create_time, update_time)"
+                   " VALUES ('m', 'memo', 1, 1)")
+        db.commit()
+        db.close()
+        s = Store(self.path)
+        self.addCleanup(s.close)
+        self.assertEqual(s._db.execute("PRAGMA user_version").fetchone()[0], 2)
+        self.assertEqual([c.content for c in s.clips()], ["c"])
+        self.assertEqual([m.content for m in s.memos()], ["memo"])
+        self.assertEqual(s.draft(), "")
 
     def test_wal_active(self):
         s = Store(self.path)
