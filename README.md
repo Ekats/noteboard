@@ -43,7 +43,7 @@ store.
 |---|---|
 | Layer-shell popup surface | Working |
 | Cursor-relative placement | Working |
-| Global shortcut (Meta+Shift+V) | Working, script loaded by the daemon |
+| Global shortcut (Meta+V) | Working, script loaded by the daemon |
 | Tray icon (left: Capture, right: Notes) | Working, StatusNotifierItem without a menu |
 | Quit button (Settings) | Working, exits 0 so the systemd unit stays stopped |
 | Run at login | systemd user service (`packaging/noteboard.service`) |
@@ -137,8 +137,21 @@ to that tab. Middle click does nothing. The right-click action is the KWin
 shortcut `NoteboardShowNotes` (System Settings → Shortcuts → NoteBoard),
 which you can also bind a key to.
 
-The daemon loads its own KWin script (the `Meta+Shift+V` shortcut) on
+The daemon loads its own KWin script (the `Meta+V` shortcut) on
 start and again whenever KWin restarts, so nothing else needs setting up.
+
+On its first start NoteBoard takes `Meta+V` from Plasma's own clipboard popup
+("Show Clipboard Items at Mouse Position"). It does this once, and only if
+that popup is what holds the key; a key held by anything else is left alone.
+After that, rebind it freely in System Settings → Keyboard → Shortcuts. To
+give `Meta+V` back to Plasma:
+
+```sh
+busctl --user call org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel \
+  setForeignShortcutKeys 'asa(ai)' 4 kwin NoteboardShowPopup KWin 'NoteBoard: show popup at pointer' 0 \
+&& busctl --user call org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel \
+  setForeignShortcutKeys 'asa(ai)' 4 plasmashell show-on-mouse-pos plasmashell 'Show Clipboard Items at Mouse Position' 1 1 268435542
+```
 
 ## Notes on sync
 

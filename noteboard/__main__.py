@@ -12,12 +12,13 @@ from pathlib import Path
 
 os.environ.setdefault("QT_WAYLAND_SHELL_INTEGRATION", "layer-shell")
 
-from PySide6.QtCore import QStandardPaths  # noqa: E402
+from PySide6.QtCore import QStandardPaths, QTimer  # noqa: E402
 from PySide6.QtGui import QGuiApplication, QRegion  # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 
 from noteboard.clipboard import WaylandClipboard  # noqa: E402
 from noteboard.kwin import KWinScript  # noqa: E402
+from noteboard.shortcut import ShortcutClaim  # noqa: E402
 from noteboard.models import ClipModel, Draft, MemoModel # noqa: E402
 from noteboard.paste import Paster, PortalKeyboard  # noqa: E402
 from noteboard.service import PopupService  # noqa: E402
@@ -130,6 +131,9 @@ def main() -> int:
     # After registering, so the shortcut never fires at a daemon that is not
     # listening yet.
     kwin_script = KWinScript()  # referenced here so it is not collected
+    claim = ShortcutClaim()  # referenced here so it is not collected
+    # Delayed so KWin has registered the script's shortcuts by then.
+    kwin_script.loaded.connect(lambda: QTimer.singleShot(1000, claim.claim))
     kwin_script.ensure()
     tray = Tray(window)  # referenced here so it is not collected
     clipboard.start()

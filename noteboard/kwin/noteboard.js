@@ -26,7 +26,7 @@ function showPopupAtPointer(page) {
 
 registerShortcut("NoteboardShowPopup",
                  "NoteBoard: show popup at pointer",
-                 "Meta+Shift+V",
+                 "Meta+V",
                  function () { showPopupAtPointer("capture"); });
 
 // No default key: the tray icon's right click triggers this by name through

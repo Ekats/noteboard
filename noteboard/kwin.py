@@ -7,7 +7,7 @@ so the daemon installs it itself and again whenever KWin reappears.
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QTimer
+from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtDBus import (QDBusConnection, QDBusInterface, QDBusMessage,
                             QDBusServiceWatcher)
 
@@ -20,6 +20,8 @@ RETRY_GIVE_UP_MS = 10_000
 
 
 class KWinScript(QObject):
+    loaded = Signal()  # the script is running, its shortcuts registering
+
     def __init__(self, parent=None):
         super().__init__(parent)
         bus = QDBusConnection.sessionBus()
@@ -49,6 +51,7 @@ class KWinScript(QObject):
             return
         error = self._load(bus)
         if error is None:
+            self.loaded.emit()
             return
         # KWin takes its bus name before /Scripting is exported, so right
         # after a restart the first calls can fail.
