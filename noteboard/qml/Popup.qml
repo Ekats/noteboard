@@ -116,12 +116,28 @@ Window {
         property bool fontBold: false
         property bool fontItalic: false
         property bool fontOutline: false
+        property bool memosEnabled: false
+        property string memosUrl: ""  // the access token lives in the secret store, not here
+        property bool memosTokenSet: false  // whether the secret store holds one
     }
 
     Binding {
         target: clipModel
         property: "limit"
         value: config.historyLimit
+    }
+
+    Binding { target: syncController; property: "enabled"; value: config.memosEnabled }
+    Binding { target: syncController; property: "serverUrl"; value: config.memosUrl }
+    Binding { target: syncController; property: "tokenSet"; value: config.memosTokenSet }
+    // A sync that finishes mid-edit reloads the list after the edit ends.
+    Binding { target: syncController; property: "editing"; value: notes.editing }
+
+    Connections {
+        target: syncController
+        function onTokenStored(ok, isSet, error) {
+            if (ok) config.memosTokenSet = isSet;
+        }
     }
 
     // Breeze-like drop shadow. It is cut out under the panel, so a translucent

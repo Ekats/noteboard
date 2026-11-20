@@ -7,12 +7,14 @@ a separate process -- see the README.
 """
 
 import os
+import signal
+import socket
 import sys
 from pathlib import Path
 
 os.environ.setdefault("QT_WAYLAND_SHELL_INTEGRATION", "layer-shell")
 
-from PySide6.QtCore import QStandardPaths, QTimer  # noqa: E402
+from PySide6.QtCore import QSocketNotifier, QStandardPaths, QTimer  # noqa: E402
 from PySide6.QtGui import QGuiApplication, QRegion  # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 
@@ -23,6 +25,7 @@ from noteboard.models import ClipModel, Draft, MemoModel # noqa: E402
 from noteboard.paste import Paster, PortalKeyboard  # noqa: E402
 from noteboard.service import PopupService  # noqa: E402
 from noteboard.store import Store  # noqa: E402
+from noteboard.syncctl import SyncController  # noqa: E402
 from noteboard.textformat import LineHeight  # noqa: E402
 from noteboard.tray import Tray  # noqa: E402
 
@@ -31,6 +34,25 @@ QML_DIR = Path(__file__).parent / "qml"
 # Used only if the QML has not laid out yet and cannot report where its
 # first list row sits.
 FALLBACK_ROW_OFFSET = 64
+
+
+def _quit_on_signals(app) -> QSocketNotifier:
+    """SIGTERM (systemctl stop) and SIGINT take the normal quit path.
+
+    Python only runs signal handlers when the interpreter executes bytecode,
+    which a sleeping Qt loop never does. The wakeup fd makes the C-level
+    handler write to a socket the loop watches, and the notifier's slot is
+    Python, so the real handler runs right after."""
+    rsock, wsock = socket.socketpair()
+    rsock.setblocking(False)
+    wsock.setblocking(False)
+    signal.set_wakeup_fd(wsock.fileno())
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, lambda *_: app.quit())
+    notifier = QSocketNotifier(rsock.fileno(), QSocketNotifier.Type.Read)
+    notifier.activated.connect(lambda: rsock.recv(64))
+    notifier.sockets = (rsock, wsock)   # keep the sockets as long as the notifier
+    return notifier
 
 
 def main() -> int:
@@ -49,6 +71,12 @@ def main() -> int:
     memo_model = MemoModel(store)
     draft.sent.connect(memo_model.reload)
 
+    # Idle (no thread, no network) until enabled and configured in Settings.
+    sync_ctl = SyncController(data_dir / "noteboard.db")
+    store.on_memo_change = sync_ctl.changed
+    sync_ctl.memosChanged.connect(memo_model.reload)
+    app.aboutToQuit.connect(sync_ctl.shutdown)
+
     clipboard = WaylandClipboard()
     clipboard.changed.connect(clip_model.add)
 
@@ -63,6 +91,7 @@ def main() -> int:
     engine.rootContext().setContextProperty("paster", paster)
     engine.rootContext().setContextProperty("draft", draft)
     engine.rootContext().setContextProperty("memoModel", memo_model)
+    engine.rootContext().setContextProperty("syncController", sync_ctl)
     engine.load(QML_DIR / "Popup.qml")
     roots = engine.rootObjects()
     if not roots:
@@ -116,6 +145,7 @@ def main() -> int:
         clip_model.reload()
         draft.reload()
         memo_model.reload()
+        sync_ctl.popupShown()
         window.setVisible(True)
         # Clicks in the shadow margin fall through to the windows below.
         window.setMask(QRegion(margin, margin, panel_w, panel_h))
@@ -139,7 +169,17 @@ def main() -> int:
     clipboard.start()
     keyboard.start()
 
-    return app.exec()
+    signal_wakeup = _quit_on_signals(app)  # referenced here so it is not collected
+    rc = app.exec()
+    if sync_ctl.stuck:
+        # The sync worker is blocked in a network read and a running QThread
+        # cannot be destroyed, so skip interpreter teardown. Close what needs
+        # it first; exit code stays 0 so Restart=on-failure leaves a Quit quit.
+        store.close()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(rc)
+    return rc
 
 
 if __name__ == "__main__":

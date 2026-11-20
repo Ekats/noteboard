@@ -40,9 +40,21 @@ Item {
     // 0 means unlimited.
     readonly property var historySteps: [50, 100, 250, 500, 1000, 2500, 5000, 0]
 
+    // The Memos section pushed the page past the panel height.
+    Flickable {
+      id: scroller
+      anchors.fill: parent
+      contentHeight: column.height + 16
+      clip: true
+      boundsBehavior: Flickable.StopAtBounds
+      ScrollBar.vertical: ScrollBar {}
+
     ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 8
+        id: column
+        x: 8
+        y: 8
+        width: scroller.width - 16
+        height: Math.max(implicitHeight, scroller.height - 16)
         spacing: 8
 
         Switch {
@@ -324,6 +336,75 @@ Item {
             }
         }
 
+        OutlineLabel { outline: config.fontOutline; text: qsTr("Memos sync") }
+
+        Switch {
+            text: qsTr("Sync with a Memos server")
+            checked: config.memosEnabled
+            onToggled: config.memosEnabled = checked
+        }
+
+        TextField {
+            id: memosUrl
+            Layout.fillWidth: true
+            placeholderText: qsTr("Server URL, e.g. https://memos.example.com")
+            text: config.memosUrl
+            inputMethodHints: Qt.ImhUrlCharactersOnly
+            onEditingFinished: config.memosUrl = text.trim()
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            TextField {
+                id: memosToken
+                Layout.fillWidth: true
+                echoMode: TextInput.Password
+                placeholderText: config.memosTokenSet ? qsTr("Token saved")
+                                                      : qsTr("Access token")
+                onAccepted: saveToken()
+                function saveToken() {
+                    if (text === "") return;
+                    syncController.saveToken(text);
+                    text = "";  // never keep the secret in the UI
+                }
+            }
+            Button {
+                text: qsTr("Save")
+                enabled: memosToken.text !== ""
+                onClicked: memosToken.saveToken()
+            }
+            Button {
+                text: qsTr("Clear")
+                visible: config.memosTokenSet
+                onClicked: syncController.saveToken("")
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            Button {
+                text: qsTr("Sync now")
+                enabled: config.memosEnabled && config.memosUrl !== ""
+                         && config.memosTokenSet && !syncController.syncing
+                onClicked: syncController.syncNow()
+            }
+            OutlineLabel {
+                id: memosStatus
+                outline: config.fontOutline
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: page.tokenError !== "" ? page.tokenError
+                    : !config.memosEnabled ? qsTr("Sync is off")
+                    : config.memosUrl === "" ? qsTr("Enter the server URL")
+                    : !config.memosTokenSet ? qsTr("Add an access token")
+                    : syncController.syncing ? qsTr("Syncing…")
+                    : syncController.status !== "" ? syncController.status
+                    : qsTr("Not synced yet")
+            }
+        }
+
         Item { Layout.fillHeight: true }
 
         Button {
@@ -347,5 +428,13 @@ Item {
                      : quitButton.hovered ? "#e5606d" : "#da4453"
             }
         }
+    }
+    }
+
+    // Last failed token save/clear, shown in place of the sync status.
+    property string tokenError: ""
+    Connections {
+        target: syncController
+        function onTokenStored(ok, isSet, error) { page.tokenError = ok ? "" : error }
     }
 }

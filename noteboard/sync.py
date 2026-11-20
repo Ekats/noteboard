@@ -122,7 +122,9 @@ def _reconcile_missing(store: Store, client, res: SyncResult, row: SyncRow) -> N
         _push_new(store, client, row, res)
 
 
-def sync(store: Store, client) -> SyncResult:
+def sync(store: Store, client, should_stop=None) -> SyncResult:
+    """should_stop is polled between memos so a quitting app can end the run
+    early; whatever was not reached is simply picked up next time."""
     res = SyncResult()
     try:
         remote = client.list_all()
@@ -138,6 +140,8 @@ def sync(store: Store, client) -> SyncResult:
     steps += [(row.id, lambda row=row: _reconcile_missing(store, client, res, row))
               for row in local.values() if row.id not in seen]
     for memo_id, step in steps:
+        if should_stop and should_stop():
+            break
         try:
             step()
         except (AuthError, NetworkError) as e:

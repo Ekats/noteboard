@@ -117,6 +117,9 @@ class Store:
             Path(path).parent.mkdir(parents=True, exist_ok=True)
         # Autocommit; transactions are explicit so migrations can be atomic.
         self._db = sqlite3.connect(str(path), isolation_level=None)
+        # Called after a local memo write that sync should push. The sync
+        # worker's own writes (apply_remote etc.) deliberately do not call it.
+        self.on_memo_change = None
         self._db.row_factory = sqlite3.Row
         # The popup daemon and the (future, separate-process) board share
         # this file: WAL lets one write while the other reads, and the busy
@@ -203,6 +206,7 @@ class Store:
         self._db.execute(
             "INSERT INTO memo (id, content, pinned, create_time, update_time)"
             " VALUES (?, ?, ?, ?, ?)", (memo_id, content, int(pinned), now, now))
+        self._memo_changed()
         return memo_id
 
     def update_memo(self, memo_id: str, *, content: str | None = None,
@@ -216,12 +220,18 @@ class Store:
                 args.append(value)
         self._db.execute(f"UPDATE memo SET {', '.join(sets)} WHERE id = ?",
                          (*args, memo_id))
+        self._memo_changed()
 
     def delete_memo(self, memo_id: str) -> None:
         now = _now_ms()
         self._db.execute(
             "UPDATE memo SET deleted_at = ?, update_time = ?, dirty = 1 WHERE id = ?",
             (now, now, memo_id))
+        self._memo_changed()
+
+    def _memo_changed(self) -> None:
+        if self.on_memo_change:
+            self.on_memo_change()
 
     def memos(self, include_archived: bool = False) -> list[Memo]:
         where = "m.deleted_at IS NULL"
