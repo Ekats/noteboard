@@ -47,6 +47,12 @@ Item {
     }
     onPadHeightChanged: pad.SplitView.preferredHeight = padHeight
 
+    // Cursor goes to the end so typing continues the existing draft.
+    function focusPad() {
+        note.forceActiveFocus();
+        note.cursorPosition = note.length;
+    }
+
     FontMetrics {
         id: fm
         font.pointSize: fontSize

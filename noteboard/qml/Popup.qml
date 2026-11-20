@@ -81,8 +81,19 @@ Window {
 
     onVisibleChanged: {
         leaveTimer.stop();  // a close pending from the last show must not fire
-        if (visible) leaveArmed = false;
+        if (visible) {
+            leaveArmed = false;
+            Qt.callLater(focusPad);
+        }
     }
+
+    // The surface is recreated and activated asynchronously after each show,
+    // and the daemon sets the page around it, so every trigger funnels here
+    // and only acts once all of visible, active and Capture hold.
+    function focusPad() {
+        if (visible && active && pages.currentIndex === 0) home.focusPad();
+    }
+    onActiveChanged: focusPad()
 
     Settings {
         id: config
@@ -280,6 +291,7 @@ Window {
                 id: pages
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                onCurrentIndexChanged: Qt.callLater(popup.focusPad)
 
                 HomePage {
                     id: home
