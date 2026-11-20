@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 import QtCore
 import org.kde.layershell as LayerShell
 
@@ -22,11 +23,18 @@ Window {
     // explicitly or the surface lands on the primary output.
     property var targetScreen: null
 
-    // Distance from the popup's top edge to the middle of the first list
+    // The visible panel; the window is this plus a transparent margin on all
+    // sides that holds the drop shadow. The daemon positions and clamps the
+    // panel, and restricts input to it.
+    readonly property int panelWidth: 400
+    readonly property int panelHeight: 520
+    readonly property int shadowMargin: 32
+
+    // Distance from the window's top edge to the middle of the first list
     // row. The daemon reads this to drop the pointer onto that row, so the
     // newest clipboard entry is already under the cursor on open.
     readonly property int firstRowOffset:
-        layout.anchors.topMargin + topBar.height + layout.spacing + home.rowHeight / 2
+        shadowMargin + layout.anchors.topMargin + topBar.height + layout.spacing + home.rowHeight / 2
 
     // Set false again on each show, so a popup that opens away from the
     // pointer does not immediately close. Arms once the mouse is inside.
@@ -43,8 +51,8 @@ Window {
     LayerShell.Window.screenConfiguration: LayerShell.Window.ScreenFromQWindow
     LayerShell.Window.screen: targetScreen
 
-    width: 400
-    height: 520
+    width: panelWidth + 2 * shadowMargin
+    height: panelHeight + 2 * shadowMargin
     color: "transparent"
 
     // Starts hidden: this is a resident daemon, shown on request over D-Bus.
@@ -62,6 +70,7 @@ Window {
         property int fontSize: 12  // points, clips and sticky
         property string stickyColor: "#af9659"  // default for the pad and notes without their own
         property real padLines: 0  // dragged draft pad height in text lines; 0 = default
+        property int opacity: 80  // percent, panel background only
     }
 
     Binding {
@@ -70,10 +79,58 @@ Window {
         value: config.historyLimit
     }
 
-    Rectangle {
+    // Breeze-like drop shadow. It is cut out under the panel, so a translucent
+    // panel does not show a dark slab through itself.
+    // The layer is the whole window: a layer is clipped to its item, and the
+    // blur reaches past the panel.
+    Item {
         anchors.fill: parent
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            maskEnabled: true
+            maskInverted: true
+            maskSource: hole
+            maskThresholdMin: 0.5
+            maskSpreadAtMin: 1.0
+        }
+
+        RectangularShadow {
+            x: panel.x
+            y: panel.y + 2
+            width: panel.width
+            height: panel.height
+            radius: panel.radius
+            blur: 28
+            spread: 4
+            color: "#cc000000"
+        }
+    }
+
+    // Mask source for the cut-out above: the panel's footprint.
+    Item {
+        id: hole
+        anchors.fill: parent
+        visible: false
+        layer.enabled: true
+
+        Rectangle {
+            x: panel.x
+            y: panel.y
+            width: panel.width
+            height: panel.height
+            radius: panel.radius
+        }
+    }
+
+    Rectangle {
+        id: panel
+        x: shadowMargin
+        y: shadowMargin
+        width: panelWidth
+        height: panelHeight
         radius: 8
-        color: palette.window
+        // Alpha on the colour, not Item.opacity, so the content stays opaque.
+        color: Qt.alpha(palette.window, config.opacity / 100)
 
         HoverHandler {
             onHoveredChanged: {

@@ -42,6 +42,7 @@ Item {
                 color: Sticky.ink(card.fill)
                 linkColor: Sticky.isLight(card.fill) ? "#14357a" : "#9ec1ff"
                 font.pointSize: fontSize
+                lineHeight: Sticky.lineFactor
                 textFormat: Text.MarkdownText
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                 text: Sticky.breakLines(card.content)

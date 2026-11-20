@@ -1,5 +1,9 @@
 .pragma library
 
+// Line height multiplier for all text: a touch tighter than the font's
+// natural spacing.
+var lineFactor = 0.92;
+
 // Text colours for a sticky background given as "#RRGGBB": near-black on
 // light colours, near-white on dark ones, switching where the two give equal
 // contrast (relative luminance 0.179).

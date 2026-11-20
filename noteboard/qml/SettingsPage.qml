@@ -86,6 +86,28 @@ Item {
             }
         }
 
+        Label { text: qsTr("Background opacity") }
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            Slider {
+                Layout.fillWidth: true
+                from: 30
+                to: 100
+                stepSize: 5
+                snapMode: Slider.SnapAlways
+                value: config.opacity
+                onMoved: config.opacity = Math.round(value)
+            }
+
+            Label {
+                Layout.minimumWidth: 70
+                horizontalAlignment: Text.AlignRight
+                text: qsTr("%1 %").arg(config.opacity)
+            }
+        }
+
         Label { text: qsTr("Clipboard history") }
 
         RowLayout {

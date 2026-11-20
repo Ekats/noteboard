@@ -13,7 +13,7 @@ from pathlib import Path
 os.environ.setdefault("QT_WAYLAND_SHELL_INTEGRATION", "layer-shell")
 
 from PySide6.QtCore import QStandardPaths  # noqa: E402
-from PySide6.QtGui import QGuiApplication  # noqa: E402
+from PySide6.QtGui import QGuiApplication, QRegion  # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 
 from noteboard.clipboard import WaylandClipboard  # noqa: E402
@@ -22,6 +22,7 @@ from noteboard.models import ClipModel, Draft, MemoModel # noqa: E402
 from noteboard.paste import Paster, PortalKeyboard  # noqa: E402
 from noteboard.service import PopupService  # noqa: E402
 from noteboard.store import Store  # noqa: E402
+from noteboard.textformat import LineHeight  # noqa: E402
 
 QML_DIR = Path(__file__).parent / "qml"
 
@@ -52,7 +53,10 @@ def main() -> int:
     keyboard = PortalKeyboard()
     paster = Paster(clipboard, keyboard)
 
+    line_height = LineHeight()
+
     engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("blockFormat", line_height)
     engine.rootContext().setContextProperty("clipModel", clip_model)
     engine.rootContext().setContextProperty("paster", paster)
     engine.rootContext().setContextProperty("draft", draft)
@@ -85,25 +89,32 @@ def main() -> int:
 
         paster.set_target(window_class)
 
-        # Aim the pointer at the first list row rather than at the popup's
+        # The window is the panel plus a transparent margin for the shadow.
+        # Aim the pointer at the first list row rather than at the panel's
         # corner: centred horizontally, and far enough down that the newest
         # clipboard entry opens directly under the cursor.
+        margin = window.property("shadowMargin")
+        panel_w = window.property("panelWidth")
+        panel_h = window.property("panelHeight")
         row_offset = window.property("firstRowOffset") or FALLBACK_ROW_OFFSET
         x -= window.width() // 2
         y -= row_offset
 
+        # Only the panel is kept on the output; the margin may hang off it.
         if screen is not None:
             bounds = screen.geometry()
-            x = min(x, bounds.width() - window.width())
-            y = min(y, bounds.height() - window.height())
-        window.setProperty("originX", max(0, x))
-        window.setProperty("originY", max(0, y))
+            x = min(x, bounds.width() - panel_w - margin)
+            y = min(y, bounds.height() - panel_h - margin)
+        window.setProperty("originX", max(-margin, x))
+        window.setProperty("originY", max(-margin, y))
         # No cross-process change notification yet, so pick up rows written
         # by other processes (the board) on every show.
         clip_model.reload()
         draft.reload()
         memo_model.reload()
         window.setVisible(True)
+        # Clicks in the shadow margin fall through to the windows below.
+        window.setMask(QRegion(margin, margin, panel_w, panel_h))
         window.requestActivate()
 
     service = PopupService()

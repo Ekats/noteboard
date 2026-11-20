@@ -16,8 +16,7 @@ Item {
     // than pixels so the split keeps following the font size.
     property real padLines: 0
 
-    // Clip text is set a touch tighter than the font's natural spacing.
-    readonly property real lineFactor: 0.92
+    readonly property real lineFactor: Sticky.lineFactor
     // Every row is two text lines tall, one-liners included, so the list
     // reads as an even grid and two-line entries show whole.
     readonly property int twoLines: Math.ceil(fm.lineSpacing * 2 * lineFactor)
@@ -28,11 +27,13 @@ Item {
     // whatever leaves one clip row visible.
     readonly property int defaultPadLines: 6
     readonly property real padChrome: note.topPadding + note.bottomPadding
+    // The pad's lines are set at the same factor as the clips (see blockFormat).
+    readonly property real padLine: fm.lineSpacing * lineFactor
     readonly property real padHeight: {
         const lines = padLines > 0 ? padLines : defaultPadLines;
-        const want = Math.ceil(lines * fm.lineSpacing + padChrome);
+        const want = Math.ceil(lines * padLine + padChrome);
         const cap = padLines > 0 ? split.height - rowHeight - 8 : split.height / 2;
-        return Math.max(Math.ceil(2 * fm.lineSpacing + padChrome), Math.min(want, cap));
+        return Math.max(Math.ceil(2 * padLine + padChrome), Math.min(want, cap));
     }
     onPadHeightChanged: pad.SplitView.preferredHeight = padHeight
 
@@ -54,7 +55,7 @@ Item {
         // Dragging writes SplitView.preferredHeight directly, so the pad's
         // height is set imperatively (onPadHeightChanged) rather than bound.
         onResizingChanged: if (!resizing)
-            padResized((pad.height - padChrome) / fm.lineSpacing)
+            padResized((pad.height - padChrome) / padLine)
 
         handle: Item {
             implicitHeight: 10
@@ -94,6 +95,12 @@ Item {
                     height: expanded
                         ? Math.max(rowHeight, implicitContentHeight + topPadding + bottomPadding)
                         : rowHeight
+                    // The style's own background is an opaque view colour,
+                    // which would block the translucent panel.
+                    background: Rectangle {
+                        color: row.down ? Qt.alpha(palette.highlight, 0.35)
+                            : row.hovered ? Qt.alpha(palette.highlight, 0.2) : "transparent"
+                    }
                     onClicked: {
                         paster.paste(content);
                         picked();
@@ -167,7 +174,7 @@ Item {
         // Sticky-coloured pad; text stays near-black whatever the theme.
         Rectangle {
             id: pad
-            SplitView.minimumHeight: Math.ceil(2 * fm.lineSpacing + padChrome)
+            SplitView.minimumHeight: Math.ceil(2 * padLine + padChrome)
             Component.onCompleted: SplitView.preferredHeight = padHeight
             radius: 8
             color: stickyColor
@@ -192,10 +199,11 @@ Item {
                     placeholderTextColor: Sticky.muted(stickyColor)
                     placeholderText: qsTr("Write a note…")
                     text: draft.content
+                    Component.onCompleted: blockFormat.keep(textDocument, lineFactor)
                     // Written through on every edit. A reload that changes the
                     // text comes back here too, but setContent ignores a value
                     // that already matches the draft.
-                    onTextChanged: draft.setContent(text)
+                    onTextChanged: if (text !== draft.content) draft.setContent(text)
                     Keys.onPressed: event => {
                         if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
                                 && (event.modifiers & Qt.ControlModifier)) {
