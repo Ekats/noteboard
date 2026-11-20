@@ -48,6 +48,15 @@ def _push_new(store: Store, client, row: SyncRow, res: SyncResult) -> None:
         # Server refuses client-chosen ids: let it pick, finish_push moves
         # the row (and its memo_local) to that id.
         remote = client.create(fields)
+    if remote.state != row.state:
+        # The server creates everything as NORMAL, so archive in a second call.
+        try:
+            remote = client.update(remote.id, {"state": row.state})
+        except MemosError:
+            # The memo exists remotely now: record the linkage but keep the
+            # local row dirty so the next run retries instead of duplicating.
+            store.finish_push(row, remote, keep_local=True)
+            raise
     store.finish_push(row, remote)
     res.pushed += 1
 

@@ -175,19 +175,24 @@ class MemosClient:
         return _to_remote(self._request("GET", f"memos/{memo_id}"))
 
     def create(self, fields: dict, memo_id: str | None = None) -> RemoteMemo:
-        """fields: content, pinned, state, visibility, create_time (unix ms)."""
+        """fields: content, pinned, state, visibility, create_time (unix ms).
+        The server ignores `state` here and always creates NORMAL; the caller
+        must PATCH it afterwards."""
         query = {"memoId": memo_id} if memo_id else None
         return _to_remote(self._request(
             "POST", "memos", query=query, body=_to_body(fields)))
 
     def update(self, memo_id: str, fields: dict) -> RemoteMemo:
         """PATCH only the given fields; the mask is derived from them so
-        attachments and relations on the server are never touched."""
+        attachments and relations on the server are never touched. The mask
+        names are snake_case (camelCase is silently ignored), and update_time
+        must be in it, with no value, or the server does not bump updateTime
+        and the change is invisible to other clients' sync."""
         body = _to_body(fields)
         body["name"] = f"memos/{memo_id}"
         return _to_remote(self._request(
             "PATCH", f"memos/{memo_id}",
-            query={"updateMask": ",".join(_FIELD_NAMES[k] for k in fields)},
+            query={"updateMask": ",".join([*fields, "update_time"])},
             body=body))
 
     def delete(self, memo_id: str) -> None:

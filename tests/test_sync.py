@@ -27,6 +27,7 @@ class FakeMemosServer:
         self.attachments: dict[str, list] = {}
         self.reject_memo_id = reject_memo_id
         self.fail: dict[str, Exception] = {}   # memo id -> raised on create/update
+        self.fail_update: dict[str, Exception] = {}  # memo id -> raised on update only
         self.list_error: Exception | None = None
         self.on_write = None                   # runs after a write, before the reply
         self.calls: list[tuple] = []
@@ -59,8 +60,9 @@ class FakeMemosServer:
             memo_id = f"srv{self._n}"
         if memo_id in self.fail:
             raise self.fail[memo_id]
+        # Like the real server: state is ignored on create.
         m = self.put(memo_id, fields["content"], pinned=fields["pinned"],
-                     state=fields["state"], visibility=fields["visibility"],
+                     state="NORMAL", visibility=fields["visibility"],
                      create_time=fields.get("create_time"))
         if self.on_write:
             self.on_write()
@@ -68,8 +70,9 @@ class FakeMemosServer:
 
     def update(self, memo_id, fields):
         self.calls.append(("update", memo_id, dict(fields)))
-        if memo_id in self.fail:
-            raise self.fail[memo_id]
+        for table in (self.fail, self.fail_update):
+            if memo_id in table:
+                raise table[memo_id]
         if memo_id not in self.memos:
             raise NotFoundError("gone")
         old = self.memos[memo_id]
@@ -294,6 +297,34 @@ class ReconcileMissingFromServer(SyncTestBase):
         self.assertEqual(res.pushed, 1)
         sync(self.s, self.srv)          # second run is a no-op
         self.assertEqual(len(self.srv.calls), 1)
+
+
+class ArchivedCreate(SyncTestBase):
+    def test_archived_local_memo_is_archived_after_create(self):
+        mid = self.s.create_memo("old")
+        self.s.update_memo(mid, state="ARCHIVED")
+        res = sync(self.s, self.srv)
+        self.assertEqual(res.errors, [])
+        self.assertEqual(self.srv.memos[mid].state, "ARCHIVED")
+        r = self.row(mid)
+        self.assertEqual((r.state, r.dirty, r.synced_update_time),
+                         ("ARCHIVED", False, self.srv.memos[mid].update_time))
+
+    def test_archive_step_failing_retries_instead_of_duplicating(self):
+        mid = self.s.create_memo("old")
+        self.s.update_memo(mid, state="ARCHIVED")
+        self.srv.fail_update[mid] = ApiError("boom", 500)
+        res = sync(self.s, self.srv)
+        self.assertEqual(len(res.errors), 1)
+        r = self.row(mid)
+        self.assertEqual((r.state, r.dirty), ("ARCHIVED", True))
+        self.assertEqual(r.synced_update_time, self.srv.memos[mid].update_time)
+        self.srv.fail_update.clear()
+        res = sync(self.s, self.srv)
+        self.assertEqual((res.conflicts, res.errors), (0, []))
+        self.assertEqual(self.ids(), {mid})
+        self.assertEqual(self.srv.memos[mid].state, "ARCHIVED")
+        self.assertFalse(self.row(mid).dirty)
 
 
 class MemoIdRejected(SyncTestBase):

@@ -356,18 +356,19 @@ class Store:
             self._write_remote(base.id, r)
             return self._current(new_id)
 
-    def finish_push(self, base: SyncRow, r) -> bool:
+    def finish_push(self, base: SyncRow, r, keep_local: bool = False) -> bool:
         """Record the server's answer to a create/PATCH of `base`. If the
         server assigned another id the row (and its memo_local) moves to it.
         True if the row ended clean; False if it was edited during the push,
-        in which case the local fields win and it stays dirty."""
+        in which case the local fields win and it stays dirty (also forced by
+        keep_local, for a push that only half landed)."""
         with self._tx():
             cur = self._current(base.id)
             if cur is None:
                 return False
             if r.id != base.id:
                 self._move_id(base.id, r.id)
-            if cur.update_time != base.update_time:
+            if keep_local or cur.update_time != base.update_time:
                 self._db.execute(
                     "UPDATE memo SET synced_update_time = ?, dirty = 1 WHERE id = ?",
                     (r.update_time, r.id))

@@ -76,7 +76,9 @@ class ClientTest(unittest.TestCase):
     def test_update_sends_mask_and_no_attachments(self):
         self.c.update("5", {"content": "x", "pinned": False})
         _, path, q, body, _ = Handler.log[-1]
-        self.assertEqual((path, q["updateMask"]), ("/api/v1/memos/5", "content,pinned"))
+        self.assertEqual((path, q["updateMask"]),
+                         ("/api/v1/memos/5", "content,pinned,update_time"))
+        self.assertNotIn("updateTime", body)
         self.assertNotIn("attachments", body)
 
     def test_create_passes_memo_id_and_create_time(self):
