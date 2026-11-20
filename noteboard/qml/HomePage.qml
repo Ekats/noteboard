@@ -7,7 +7,12 @@ import QtQuick.Layouts
 // pointer at the middle of the first row, so it reads rowHeight to compute
 // that spawn offset; the list must stay at the top of this page.
 Item {
-    readonly property int rowHeight: 32
+    // Every row is two text lines tall, one-liners included, so the list
+    // reads as an even grid and two-line entries show whole.
+    readonly property int twoLines: Math.ceil(fm.lineSpacing * 2)
+    readonly property int rowHeight: twoLines + 12
+
+    FontMetrics { id: fm }
 
     // Emitted after a row is pasted; the window decides to close.
     signal picked()
@@ -34,8 +39,6 @@ Item {
                     required property string content
                     required property bool pinned
 
-                    // A trailing newline alone does not make an entry multi-line.
-                    readonly property bool multiLine: content.trim().indexOf("\n") !== -1
                     // Not persisted: delegates are rebuilt on every show, so
                     // the popup always opens collapsed and the first row stays
                     // rowHeight tall where the pointer lands.
@@ -54,13 +57,14 @@ Item {
                         spacing: 6
 
                         Label {
+                            id: label
                             Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignTop
-                            // Collapsed shows the first line only, with an
-                            // ellipsis when more lines are hidden.
-                            text: row.expanded ? row.content.trim()
-                                : row.content.trim().split("\n")[0] + (row.multiLine ? " …" : "")
-                            wrapMode: row.expanded ? Text.Wrap : Text.NoWrap
+                            Layout.alignment: row.expanded ? Qt.AlignTop : Qt.AlignVCenter
+                            text: row.content.trim()
+                            wrapMode: Text.Wrap
+                            // Collapsed: two lines, with an ellipsis when
+                            // more is hidden (extra lines or a long wrap).
+                            maximumLineCount: row.expanded ? 100000 : 2
                             elide: Text.ElideRight
                         }
 
@@ -73,16 +77,18 @@ Item {
                             sourceSize.height: 16
                         }
 
-                        // Takes its own clicks, so expanding never pastes.
+                        // Two lines tall like the row. Takes its own clicks,
+                        // so expanding never pastes. Shown only when the
+                        // collapsed text is actually cut off.
                         ToolButton {
                             Layout.alignment: Qt.AlignTop
-                            Layout.preferredWidth: 20
-                            Layout.preferredHeight: 20
+                            Layout.preferredWidth: twoLines
+                            Layout.preferredHeight: twoLines
                             padding: 0
-                            visible: row.multiLine
+                            visible: row.expanded || label.truncated
                             icon.name: row.expanded ? "arrow-up" : "arrow-down"
-                            icon.width: 16
-                            icon.height: 16
+                            icon.width: twoLines - 6
+                            icon.height: twoLines - 6
                             onClicked: row.expanded = !row.expanded
                         }
                     }

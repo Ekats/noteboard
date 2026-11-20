@@ -87,7 +87,7 @@ Window {
         // coming back inside within it cancels the close.
         Timer {
             id: leaveTimer
-            interval: 1500
+            interval: 1000
             onTriggered: popup.visible = false
         }
 
