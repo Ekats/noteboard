@@ -6,9 +6,12 @@ Item {
     // The QtCore Settings object owned by Popup.qml, so values persist.
     required property var config
 
-    // The default first, then lighter and darker tones.
-    readonly property var stickyColors: ["#af9659", "#e6b8b0", "#e8d48a", "#a8d5ba",
-                                         "#a9c7e8", "#c9b1e8", "#4a4f57", "#5a3a55"]
+    // The default first, then the same muted tone around the hue wheel: the
+    // default's lightness, slightly less saturation so cool hues do not
+    // read louder than the warm tan. Clay, rose, mauve, slate, teal, sage,
+    // olive.
+    readonly property var stickyColors: ["#af9659", "#a27a66", "#a26670", "#8967a2",
+                                         "#667aa2", "#669da2", "#66a27a", "#89a266"]
 
     // 0 means unlimited.
     readonly property var historySteps: [50, 100, 250, 500, 1000, 2500, 5000, 0]
