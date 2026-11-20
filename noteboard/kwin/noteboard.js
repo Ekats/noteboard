@@ -9,7 +9,7 @@
 // layer-shell margins are output-relative while workspace.cursorPos is in
 // global compositor coordinates.
 
-function showPopupAtPointer() {
+function showPopupAtPointer(page) {
     var p = workspace.cursorPos;
     var screen = workspace.screenAt(p);
     if (!screen) {
@@ -19,12 +19,19 @@ function showPopupAtPointer() {
     // The window the popup will paste into, read now because the popup
     // takes focus as soon as it opens.
     var active = workspace.activeWindow;
-    callDBus("io.github.ekats.noteboard", "/Popup", "", "showAt",
+    callDBus("io.github.ekats.noteboard", "/Popup", "", "showPageAt",
              Math.round(p.x - g.x), Math.round(p.y - g.y), screen.name,
-             active ? String(active.resourceClass) : "");
+             active ? String(active.resourceClass) : "", page);
 }
 
 registerShortcut("NoteboardShowPopup",
                  "NoteBoard: show popup at pointer",
                  "Meta+Shift+V",
-                 showPopupAtPointer);
+                 function () { showPopupAtPointer("capture"); });
+
+// No default key: the tray icon's right click triggers this by name through
+// kglobalaccel, and the user may bind a key to it.
+registerShortcut("NoteboardShowNotes",
+                 "NoteBoard: show notes at pointer",
+                 "",
+                 function () { showPopupAtPointer("notes"); });

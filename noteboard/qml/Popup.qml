@@ -73,6 +73,9 @@ Window {
         else if (!leaveTimer.running) leaveTimer.start();
     }
 
+    // Visible page, settable from the daemon: 0 capture, 1 notes, 2 settings.
+    property alias page: pages.currentIndex
+
     // Re-evaluate when the last overlay popup closes (or the first opens).
     onOverlayOpenChanged: updateLeave()
 

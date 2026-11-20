@@ -15,11 +15,17 @@ OBJECT_PATH = "/Popup"
 class PopupService(QObject):
     # x, y are relative to the named output; the last field is the resource
     # class of the window that was active when the shortcut fired.
-    showRequested = Signal(int, int, str, str)
+    # The trailing field is the page to open: "capture" or "notes".
+    showRequested = Signal(int, int, str, str, str)
 
     @Slot(int, int, str, str)
     def showAt(self, x: int, y: int, screen_name: str, window_class: str) -> None:
-        self.showRequested.emit(x, y, screen_name, window_class)
+        self.showRequested.emit(x, y, screen_name, window_class, "capture")
+
+    @Slot(int, int, str, str, str)
+    def showPageAt(self, x: int, y: int, screen_name: str, window_class: str,
+                   page: str) -> None:
+        self.showRequested.emit(x, y, screen_name, window_class, page)
 
     def register(self) -> bool:
         bus = QDBusConnection.sessionBus()

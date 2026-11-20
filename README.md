@@ -44,6 +44,9 @@ store.
 | Layer-shell popup surface | Working |
 | Cursor-relative placement | Working |
 | Global shortcut (Meta+Shift+V) | Working, script loaded by the daemon |
+| Tray icon (left: Capture, right: Notes) | Working, StatusNotifierItem without a menu |
+| Quit button (Settings) | Working, exits 0 so the systemd unit stays stopped |
+| Run at login | systemd user service (`packaging/noteboard.service`) |
 | Clipboard history store and list | Working |
 | Clipboard capture and copy-back | Working (needs `wl-clipboard`) |
 | Paste into the previous app | Working, via the RemoteDesktop portal (one-off permission prompt on first run) |
@@ -76,12 +79,63 @@ sudo dnf install python3-pyside6 python3-gobject layer-shell-qt qt6-qtwayland qt
 python3 -m noteboard
 ```
 
-### Running at login
+### Running all the time (systemd user service)
+
+NoteBoard runs as a systemd user service started with the graphical
+session. A crash restarts it after 2 s; **Quit NoteBoard** (bottom of
+Settings) exits cleanly and it stays quit until the next login or
+`systemctl --user start noteboard`.
+
+Install:
 
 ```
 pip install --user -e .
-cp packaging/io.github.ekats.noteboard.desktop ~/.config/autostart/
+mkdir -p ~/.local/share/applications
+cp packaging/io.github.ekats.noteboard.desktop ~/.local/share/applications/
 ```
+
+The `.desktop` file is only the app's identity (not an autostart entry).
+The unit expects the entry point at `~/.local/bin/noteboard`, which is where
+`pip install --user` puts it.
+
+Enable and start (either link the unit so edits to the repo copy apply, or
+copy it):
+
+```
+systemctl --user link "$PWD/packaging/noteboard.service"
+# or: cp packaging/noteboard.service ~/.config/systemd/user/ && systemctl --user daemon-reload
+systemctl --user enable --now noteboard
+```
+
+Status and logs:
+
+```
+systemctl --user status noteboard
+journalctl --user -u noteboard -f
+```
+
+Stop / disable:
+
+```
+systemctl --user stop noteboard
+systemctl --user disable noteboard
+```
+
+**Migrating from XDG autostart:** if you previously installed the autostart
+entry, remove it so the two do not both start the daemon:
+
+```
+rm ~/.config/autostart/io.github.ekats.noteboard.desktop
+```
+
+### Tray icon
+
+The tray icon (a StatusNotifierItem, no window) opens the popup at the
+pointer: **left click** → Capture tab, **right click** → Notes tab. Clicking
+while the popup is open closes it if that tab is showing, otherwise switches
+to that tab. Middle click does nothing. The right-click action is the KWin
+shortcut `NoteboardShowNotes` (System Settings → Shortcuts → NoteBoard),
+which you can also bind a key to.
 
 The daemon loads its own KWin script (the `Meta+Shift+V` shortcut) on
 start and again whenever KWin restarts, so nothing else needs setting up.

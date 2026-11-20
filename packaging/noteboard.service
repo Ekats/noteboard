@@ -1,0 +1,16 @@
+[Unit]
+Description=NoteBoard clipboard and notes popup
+# Needs the Wayland session (Plasma imports WAYLAND_DISPLAY etc. into the
+# user manager before graphical-session.target is reached).
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+# The `pip install --user` entry point.
+ExecStart=%h/.local/bin/noteboard
+# A crash restarts; a clean exit (the Quit button, exit 0) stays quit.
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

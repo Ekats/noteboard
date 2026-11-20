@@ -325,5 +325,27 @@ Item {
         }
 
         Item { Layout.fillHeight: true }
+
+        Button {
+            id: quitButton
+            Layout.fillWidth: true
+            text: qsTr("Quit NoteBoard")
+            // Exit code 0, so a systemd Restart=on-failure leaves it quit.
+            onClicked: Qt.quit()
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Stops clipboard capture until the next login or start")
+            contentItem: Label {
+                text: quitButton.text
+                color: "white"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            background: Rectangle {
+                radius: 4
+                // Breeze negative red, lightened a step on hover/press.
+                color: quitButton.down ? "#b8303f"
+                     : quitButton.hovered ? "#e5606d" : "#da4453"
+            }
+        }
     }
 }

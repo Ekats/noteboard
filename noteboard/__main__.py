@@ -23,6 +23,7 @@ from noteboard.paste import Paster, PortalKeyboard  # noqa: E402
 from noteboard.service import PopupService  # noqa: E402
 from noteboard.store import Store  # noqa: E402
 from noteboard.textformat import LineHeight  # noqa: E402
+from noteboard.tray import Tray  # noqa: E402
 
 QML_DIR = Path(__file__).parent / "qml"
 
@@ -67,7 +68,8 @@ def main() -> int:
         return 1
     window = roots[0]
 
-    def place(x: int, y: int, screen_name: str, window_class: str) -> None:
+    def place(x: int, y: int, screen_name: str, window_class: str,
+              page: str) -> None:
         """Show the popup near (x, y) on the named output.
 
         x and y arrive output-relative from the KWin script. Clamping keeps
@@ -88,6 +90,7 @@ def main() -> int:
             window.setProperty("targetScreen", screen)
 
         paster.set_target(window_class)
+        window.setProperty("page", 1 if page == "notes" else 0)
 
         # The window is the panel plus a transparent margin for the shadow.
         # Aim the pointer at the first list row rather than at the panel's
@@ -128,6 +131,7 @@ def main() -> int:
     # listening yet.
     kwin_script = KWinScript()  # referenced here so it is not collected
     kwin_script.ensure()
+    tray = Tray(window)  # referenced here so it is not collected
     clipboard.start()
     keyboard.start()
 
