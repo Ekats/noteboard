@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 Item {
+    id: page
     // The QtCore Settings object owned by Popup.qml, so values persist.
     required property var config
 
@@ -132,12 +133,24 @@ Item {
 
             Popup {
                 id: list
-                y: family.height
+                // Room under and over the field inside this page. The window
+                // also holds the shadow margin, which receives no pointer
+                // input, so the list must stay within the page; it opens
+                // upward when there is more room there.
+                property real below: 0
+                property real above: 0
+                readonly property bool flip: below < 120 && above > below
+                y: flip ? -height : family.height
                 width: family.width
-                height: Math.min(220, view.contentHeight + 2 * padding)
+                height: Math.min(220, view.contentHeight + 2 * padding, flip ? above : below)
                 padding: 1
                 focus: false  // the field keeps the keyboard
                 closePolicy: Popup.CloseOnEscape
+                onAboutToShow: {
+                    const top = family.mapToItem(page, 0, 0).y;
+                    above = top;
+                    below = page.height - top - family.height;
+                }
 
                 // Each family in its own face; the list is virtualised, so
                 // only the visible rows are built.

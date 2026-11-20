@@ -58,6 +58,24 @@ Window {
     // Starts hidden: this is a resident daemon, shown on request over D-Bus.
     visible: false
 
+    // Dropdowns, menus and tooltips live in the window's overlay layer, not in
+    // the panel, so the panel's HoverHandler reports "left" while the pointer
+    // is over them. Any visible overlay child therefore counts as inside.
+    // Tooltips count too: they hide as soon as the pointer leaves their
+    // control, and that hide re-runs updateLeave, so they cannot pin the popup.
+    readonly property bool overlayOpen: Overlay.overlay !== null && Overlay.overlay.visibleChildren.length > 0
+
+    // The one place that decides whether the close timer runs.
+    function updateLeave() {
+        const outside = leaveArmed && config.closeOnMouseLeave
+            && !panelHover.hovered && !overlayOpen;
+        if (!outside) leaveTimer.stop();
+        else if (!leaveTimer.running) leaveTimer.start();
+    }
+
+    // Re-evaluate when the last overlay popup closes (or the first opens).
+    onOverlayOpenChanged: updateLeave()
+
     onVisibleChanged: {
         leaveTimer.stop();  // a close pending from the last show must not fire
         if (visible) leaveArmed = false;
@@ -160,13 +178,10 @@ Window {
         }
 
         HoverHandler {
+            id: panelHover
             onHoveredChanged: {
-                if (hovered) {
-                    popup.leaveArmed = true;
-                    leaveTimer.stop();
-                } else if (popup.leaveArmed && config.closeOnMouseLeave) {
-                    leaveTimer.restart();
-                }
+                if (hovered) popup.leaveArmed = true;
+                popup.updateLeave();
             }
         }
 
@@ -175,7 +190,7 @@ Window {
         Timer {
             id: leaveTimer
             interval: 1000
-            onTriggered: popup.visible = false
+            onTriggered: if (!popup.overlayOpen) popup.visible = false
         }
 
         // The plain Window above has no font of its own to hand down, so this
