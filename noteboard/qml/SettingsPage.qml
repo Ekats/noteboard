@@ -63,6 +63,55 @@ Item {
             onToggled: config.closeOnMouseLeave = checked
         }
 
+        Switch {
+            id: autoPaste
+            text: qsTr("Paste automatically")
+            checked: paster.autoPaste
+            onToggled: {
+                const on = checked;
+                // The toggle broke the binding; the setting is the truth.
+                checked = Qt.binding(() => paster.autoPaste);
+                paster.setAutoPaste(on);
+            }
+        }
+
+        // Shown before the first request, so the KDE dialog that follows is
+        // expected. Inline: a second window could not take focus here.
+        ColumnLayout {
+            visible: paster.status === "consent"
+            Layout.fillWidth: true
+            spacing: 6
+
+            OutlineLabel {
+                outline: config.fontOutline
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: qsTr("To paste into the app you came from, NoteBoard needs to press Ctrl+V for you. KDE will ask you to allow NoteBoard keyboard access (shown as “remote control”). It's only used for that.")
+            }
+            RowLayout {
+                Button {
+                    text: qsTr("Continue")
+                    onClicked: paster.confirmConsent()
+                }
+                Button {
+                    text: qsTr("Cancel")
+                    onClicked: paster.setAutoPaste(false)
+                }
+            }
+        }
+
+        OutlineLabel {
+            id: pasteStatus
+            visible: paster.autoPaste && paster.status !== "consent"
+            outline: config.fontOutline
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: paster.status === "allowed" ? qsTr("Allowed")
+                : paster.status === "waiting" ? qsTr("Waiting for permission…")
+                : paster.status === "unavailable" ? qsTr("Unavailable (no portal)")
+                : qsTr("Not allowed — clicking copies only")
+        }
+
         RowLayout {
             OutlineLabel {
                 outline: config.fontOutline

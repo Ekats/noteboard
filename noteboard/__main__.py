@@ -167,7 +167,7 @@ def main() -> int:
     kwin_script.ensure()
     tray = Tray(window)  # referenced here so it is not collected
     clipboard.start()
-    keyboard.start()
+    paster.begin()
 
     signal_wakeup = _quit_on_signals(app)  # referenced here so it is not collected
     rc = app.exec()

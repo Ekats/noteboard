@@ -27,6 +27,22 @@ default), it also closes one second after the pointer leaves the panel;
 coming back within that second cancels the close. Because the keyboard grab
 is exclusive, Esc is the only way out from the keyboard.
 
+## Pasting
+
+A Wayland client cannot press keys in another client, so **Paste
+automatically** (Settings, opt-in) sends Ctrl+V through the
+xdg-desktop-portal RemoteDesktop interface (`noteboard/paste.py`). The portal
+session is created only while the setting is on, and only after the user has
+read the explanation and pressed Continue; off, a click just copies.
+
+The portal identifies a caller per D-Bus connection, and KDE's permission
+dialog can only show the app's name (it cannot carry a custom reason). So the
+portal calls use their own connection, and the first call on it is
+`org.freedesktop.host.portal.Registry.Register("io.github.ekats.noteboard")`.
+Without that KDE shows "an unidentifiable application". The restore token is
+stored with the app id it was granted to; one from before registration is not
+trusted, which is the one-time re-approval.
+
 Configuration is declarative, via the QML module that ships with
 `layer-shell-qt` (`org.kde.layershell`) — no C++ shim is needed.
 

@@ -31,6 +31,7 @@ python3 -m unittest discover tests
 | Clipboard history, notes and draft (SQLite) | `~/.local/share/noteboard/noteboard.db` |
 | Settings (QtCore `Settings`/`QSettings`) | `~/.config/noteboard/noteboard.conf` |
 
-The settings file also holds the one-off flags for the Meta+V takeover and
-the RemoteDesktop portal restore token. The Memos access token is not in it;
+The settings file also holds the one-off flags for the Meta+V takeover, the
+`autoPaste` setting and the RemoteDesktop portal restore token (with
+`portal/restoreTokenApp`, the app id it was granted to). The Memos access token is not in it;
 it lives in the Secret Service.

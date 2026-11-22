@@ -12,12 +12,40 @@ Install (see the README for the full steps):
 ```
 pip install --user -e .
 mkdir -p ~/.local/share/applications
-cp packaging/io.github.ekats.noteboard.desktop ~/.local/share/applications/
+sed "s|@HOME@|$HOME|" packaging/io.github.ekats.noteboard.desktop \
+  > ~/.local/share/applications/io.github.ekats.noteboard.desktop
 ```
 
 The `.desktop` file is only the app's identity (not an autostart entry).
 The unit expects the entry point at `~/.local/bin/noteboard`, which is where
-`pip install --user` puts it.
+`pip install --user` puts it. The `Exec` line must be that absolute path
+(hence the `sed`): xdg-desktop-portal looks the file up with its own `PATH`,
+which has no `~/.local/bin`, and GLib rejects an entry whose `Exec` program it
+cannot find. The portal then answers "App info not found" and NoteBoard stays
+unidentified. If you installed the file before this was fixed, install it again;
+no portal restart is needed.
+
+## Paste automatically
+
+Settings → **Paste automatically** (off on a fresh install). Off, clicking a
+clipboard entry copies it and closes the popup; you press Ctrl+V yourself, and
+NoteBoard never contacts the RemoteDesktop portal. On, NoteBoard also presses
+Ctrl+V (Ctrl+Shift+V in terminals) in the app you came from.
+
+Turning it on shows an explanation first. **Continue** then makes the request
+and KDE asks whether to allow NoteBoard keyboard access (labelled “remote
+control”); **Cancel** leaves the setting off. The line under the switch shows
+the state: *Allowed*, *Waiting for permission…*, *Not allowed — clicking copies
+only*, or *Unavailable (no portal)*. While it is anything but *Allowed*, a click
+only copies.
+
+NoteBoard identifies itself to the portal by its app id, so KDE names it in
+the dialog. A permission granted by an earlier version was recorded without
+that id and is not reused: the setting stays on for those users (it defaults to
+on when a permission was already granted), the explanation reappears once in
+Settings, and KDE asks one more time. Nothing is asked at startup before that.
+To revoke the permission, use System Settings → Application Permissions →
+Remote Control.
 
 Enable and start (either link the unit so edits to the repo copy apply, or
 copy it):

@@ -2,7 +2,10 @@
 Type=Application
 Name=NoteBoard
 Comment=Popup clipboard history
-Exec=noteboard
+# Absolute on purpose: xdg-desktop-portal looks this file up with its own PATH,
+# which lacks ~/.local/bin, and GLib rejects an entry whose Exec is not found
+# (the portal then refuses the app id). The installer fills in @HOME@.
+Exec=@HOME@/.local/bin/noteboard
 Icon=noteboard
 Terminal=false
 # Identity only (matches setDesktopFileName); startup is the systemd user

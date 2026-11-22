@@ -17,7 +17,7 @@ Early development. Primary target is KDE Plasma 6 on Wayland.
 | Run at login | systemd user service (`packaging/noteboard.service`) |
 | Clipboard history store and list | Working |
 | Clipboard capture and copy-back | Working (needs `wl-clipboard`) |
-| Paste into the previous app | Working, via the RemoteDesktop portal (one-off permission prompt on first run) |
+| Paste into the previous app | Working, via the RemoteDesktop portal (opt-in "Paste automatically" setting, one-off permission prompt) |
 | Capture tab | Working: clipboard list plus a draft pad (written to the store on every edit); send button or Ctrl+Enter turns the draft into a note |
 | Notes tab | Working: Markdown cards with inline edit, pin, and delete with confirmation |
 | Settings | Working: font family and size, bold/italic/outline, sticky colour, window and inner opacity (optionally linked), clipboard history limit, close-on-mouse-leave |
@@ -50,12 +50,14 @@ sudo dnf install python3-pyside6 python3-gobject libsecret layer-shell-qt qt6-qt
 ```
 pip install --user -e .
 mkdir -p ~/.local/share/applications
-cp packaging/io.github.ekats.noteboard.desktop ~/.local/share/applications/
+sed "s|@HOME@|$HOME|" packaging/io.github.ekats.noteboard.desktop \
+  > ~/.local/share/applications/io.github.ekats.noteboard.desktop
 ```
 
-The `.desktop` file is only the app's identity (not an autostart entry).
-The unit expects the entry point at `~/.local/bin/noteboard`, which is where
-`pip install --user` puts it.
+The `.desktop` file is only the app's identity (not an autostart entry); its
+`Exec` must be the absolute path, which the `sed` fills in. The unit expects
+the entry point at `~/.local/bin/noteboard`, which is where `pip install --user`
+puts it.
 
 ## Enable the service
 
@@ -66,8 +68,13 @@ systemctl --user enable --now noteboard
 
 ## First run
 
-The first paste into another app shows a one-off RemoteDesktop portal
-permission prompt. On its first start NoteBoard also takes `Meta+V` from
+Pasting into the previous app is opt-in: Settings → **Paste automatically**.
+Off (the default on a fresh install), a click only copies and you press Ctrl+V.
+Turning it on explains what is needed, then KDE shows a one-off permission
+dialog (keyboard access, labelled “remote control”). If you granted it with an
+earlier version, the setting stays on, but KDE asks once more because
+NoteBoard now identifies itself by name; see
+[docs/running.md](docs/running.md). On its first start NoteBoard also takes `Meta+V` from
 Plasma's clipboard popup; [docs/running.md](docs/running.md) explains how to
 give it back.
 
