@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+
+export PYBUILD_NAME = noteboard
+# The tests need PySide6 and a display stack; CI runs them separately.
+export PYBUILD_DISABLE = test
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+# The repo files point at the pip --user location; packages use /usr/bin.
+override_dh_auto_install:
+	dh_auto_install
+	install -Dm644 packaging/noteboard.service \
+		debian/noteboard/usr/lib/systemd/user/noteboard.service
+	sed -i 's|%h/\.local/bin|/usr/bin|' \
+		debian/noteboard/usr/lib/systemd/user/noteboard.service
+	install -d debian/noteboard/usr/share/applications
+	sed 's|@HOME@/\.local/bin|/usr/bin|' packaging/io.github.ekats.noteboard.desktop \
+		> debian/noteboard/usr/share/applications/io.github.ekats.noteboard.desktop
+	install -Dm644 icons/noteboard.png \
+		debian/noteboard/usr/share/icons/hicolor/96x96/apps/noteboard.png

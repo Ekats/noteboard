@@ -24,6 +24,53 @@ The tests are stdlib `unittest` under `tests/`. From the repo root:
 python3 -m unittest discover tests
 ```
 
+## Packages
+
+Three native packages are built from the same tree: an RPM
+(`packaging/rpm/noteboard.spec`), a DEB (`debian/`) and an Arch package
+(`packaging/arch/PKGBUILD`). `pyproject.toml` has no runtime dependencies on
+purpose (the PySide6 wheel bundles a Qt that cannot see `layer-shell-qt`), so
+each packaging lists the distro's real dependencies by hand. The repo's
+`noteboard.service` and `.desktop` point at the `pip --user` location; each
+packaging rewrites that to `/usr/bin`.
+
+The build and smoke steps run in throw-away containers, the same scripts
+locally and in CI (podman, or docker if podman is missing):
+
+```
+packaging/container.sh test  rpm  dist   # unit tests in Fedora
+packaging/container.sh build rpm  dist   # fedora:latest      -> dist/*.rpm
+packaging/container.sh build deb  dist   # ubuntu:26.04       -> dist/*.deb
+packaging/container.sh build arch dist   # archlinux:latest   -> dist/*.pkg.tar.zst
+packaging/container.sh smoke rpm  dist   # install it in a clean container and check it
+```
+
+`smoke` installs the package with dnf/apt/pacman (dependencies resolved from
+the repos, no weak/recommended ones), checks every installed file and the
+`/usr/bin` paths, and loads the installed `Popup.qml` on Qt's `offscreen`
+platform (`packaging/smoke/qml_load.py`). The `org.kde.layershell` import
+resolves there; the layer surface itself is not created (offscreen is not a
+Wayland window), so placement still needs a manual check on a real session.
+`IMAGE=debian:trixie packaging/container.sh smoke deb dist` shows how older
+releases refuse the install.
+
+The version lives in `pyproject.toml`; `packaging/check-versions.sh` fails
+the build if the spec, `debian/changelog` or the PKGBUILD disagree.
+
+## Releases
+
+Bump the version in `pyproject.toml`, the spec (`Version:`, `%changelog`),
+`debian/changelog` and the PKGBUILD (`pkgver`), commit, then push a tag:
+
+```
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The `CI` workflow then runs the tests, builds and smoke-tests the three
+packages, and creates the GitHub Release with them attached (notes are
+generated from the commits since the previous release). The tag must equal
+`v` plus the `pyproject.toml` version or the run fails.
+
 ## Data and config paths
 
 | What | Path |

@@ -1,0 +1,43 @@
+# Maintainer: Ekats <23386186+Ekats@users.noreply.github.com>
+pkgname=noteboard
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Popup clipboard history and sticky notes for KDE Plasma on Wayland'
+arch=(any)
+url='https://github.com/Ekats/noteboard'
+license=(GPL-3.0-or-later)
+# pyproject.toml lists no runtime dependencies on purpose (the PySide6 wheel
+# would bundle a Qt that cannot see layer-shell-qt), so they are all here.
+# libsecret ships the Secret-1 typelib; qt6-declarative has QtQuick.Effects.
+# layer-shell-qt 6.6+ for LayerShell.Window.screen (used by Popup.qml).
+depends=(python pyside6 python-gobject libsecret 'layer-shell-qt>=6.6' qt6-wayland
+         qt6-declarative wl-clipboard)
+optdepends=('xdg-desktop-portal-kde: permission prompt for pasting automatically'
+            'qqc2-desktop-style: native KDE look for the controls')
+makedepends=(python-build python-installer python-setuptools python-wheel)
+# CI builds from a tarball of the working tree; for an AUR-style package point
+# this at "$url/archive/v$pkgver.tar.gz" and fill in the checksum.
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "$pkgname-$pkgver"
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  python -m installer --destdir="$pkgdir" dist/*.whl
+
+  # The repo files point at the pip --user location; packages use /usr/bin.
+  install -Dm644 packaging/noteboard.service \
+    "$pkgdir/usr/lib/systemd/user/noteboard.service"
+  sed -i 's|%h/\.local/bin|/usr/bin|' "$pkgdir/usr/lib/systemd/user/noteboard.service"
+  install -d "$pkgdir/usr/share/applications"
+  sed 's|@HOME@/\.local/bin|/usr/bin|' packaging/io.github.ekats.noteboard.desktop \
+    > "$pkgdir/usr/share/applications/io.github.ekats.noteboard.desktop"
+  install -Dm644 icons/noteboard.png \
+    "$pkgdir/usr/share/icons/hicolor/96x96/apps/noteboard.png"
+  install -Dm644 README.md -t "$pkgdir/usr/share/doc/$pkgname"
+  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+}

@@ -2,20 +2,29 @@
 name = "noteboard"
 version = "0.1.0"
 description = "Popup clipboard and sticky notes for KDE Wayland"
+readme = "README.md"
 requires-python = ">=3.12"
-dependencies = [
-    "PySide6>=6.8",
-]
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Ekats" }]
+# No PySide6 here on purpose: the pip wheel bundles its own Qt, which cannot
+# see the system's org.kde.layershell QML module, so a pip-installed PySide6
+# would break the popup. Use the distro's PySide6 (see the README); distro
+# packages declare it as a native dependency.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Ekats/noteboard"
 
 [project.scripts]
 noteboard = "noteboard.__main__:main"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["noteboard"]
 
 [tool.setuptools.package-data]
-noteboard = ["qml/*.qml", "kwin/*.js", "noteboard.png"]
+noteboard = ["qml/*.qml", "qml/*.js", "kwin/*.js", "noteboard.png"]

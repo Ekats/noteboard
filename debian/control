@@ -1,0 +1,48 @@
+Source: noteboard
+Section: utils
+Priority: optional
+Maintainer: Ekats <23386186+Ekats@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13),
+               dh-python,
+               pybuild-plugin-pyproject,
+               python3-all,
+               python3-setuptools (>= 77),
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/Ekats/noteboard
+
+Package: noteboard
+Architecture: all
+# PySide6 is listed per module (the package is split); pyproject.toml has no
+# runtime dependencies on purpose, so ${python3:Depends} adds only python3.
+# Popup.qml needs two things older releases lack: LayerShell.Window.screen
+# (layer-shell-qt 6.6+) and QtQuick.Effects RectangularShadow (Qt 6.9+). So
+# Debian 13 (layer-shell-qt 6.3, Qt 6.8) and Ubuntu 25.10 (6.4, Qt 6.9) cannot
+# install this package; Ubuntu 26.04 (6.6, Qt 6.10) can.
+Depends: ${python3:Depends},
+         ${misc:Depends},
+         python3-pyside6.qtcore,
+         python3-pyside6.qtgui,
+         python3-pyside6.qtqml,
+         python3-pyside6.qtquick,
+         python3-pyside6.qtdbus,
+         python3-gi,
+         gir1.2-secret-1,
+         layer-shell-qt (>= 6.6),
+         qml6-module-org-kde-layershell (>= 6.6),
+         qml6-module-qtcore,
+         qml6-module-qtquick,
+         qml6-module-qtquick-controls,
+         qml6-module-qtquick-layouts,
+         qml6-module-qtquick-window,
+         qml6-module-qtquick-effects (>= 6.9),
+         qt6-wayland,
+         wl-clipboard,
+Recommends: xdg-desktop-portal-kde
+Description: Popup clipboard history and sticky notes for KDE Plasma on Wayland
+ NoteBoard is a popup clipboard history and Keep-style sticky notes in one
+ place, shown as a layer-shell surface at the pointer. It runs as a resident
+ daemon (a systemd user service, not enabled automatically) and optionally
+ syncs notes with a Memos server.
+ .
+ The popup needs a compositor with wlr-layer-shell (KWin, wlroots).

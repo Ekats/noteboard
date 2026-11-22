@@ -7,7 +7,7 @@ session. A crash restarts it after 2 s; **Quit NoteBoard** (bottom of
 Settings) exits cleanly and it stays quit until the next login or
 `systemctl --user start noteboard`.
 
-Install (see the README for the full steps):
+Install a distro package, or from source (see the README for the full steps):
 
 ```
 pip install --user -e .
@@ -15,6 +15,9 @@ mkdir -p ~/.local/share/applications
 sed "s|@HOME@|$HOME|" packaging/io.github.ekats.noteboard.desktop \
   > ~/.local/share/applications/io.github.ekats.noteboard.desktop
 ```
+
+The packages put the unit in `/usr/lib/systemd/user/` and the entry point at
+`/usr/bin/noteboard`; only `systemctl --user enable --now noteboard` is left.
 
 The `.desktop` file is only the app's identity (not an autostart entry).
 The unit expects the entry point at `~/.local/bin/noteboard`, which is where

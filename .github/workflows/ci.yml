@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Unit tests (Fedora)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Tag matches the version in pyproject.toml
+        if: github.ref_type == 'tag'
+        run: EXPECT_TAG="$GITHUB_REF_NAME" packaging/check-versions.sh .
+      - name: Run unit tests in a Fedora container
+        run: packaging/container.sh test rpm dist
+
+  package:
+    name: Package (${{ matrix.kind }}, ${{ matrix.image }})
+    needs: test
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kind: rpm
+            image: fedora:latest
+          # Ubuntu 26.04 is the oldest Debian-family release with
+          # layer-shell-qt >= 6.6 and Qt >= 6.9; see debian/control.
+          - kind: deb
+            image: ubuntu:26.04
+          - kind: arch
+            image: archlinux:latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: IMAGE=${{ matrix.image }} packaging/container.sh build ${{ matrix.kind }} dist
+      - name: Smoke test in a clean container
+        run: IMAGE=${{ matrix.image }} packaging/container.sh smoke ${{ matrix.kind }} dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: noteboard-${{ matrix.kind }}
+          path: dist/noteboard*
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    if: github.ref_type == 'tag'
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: packages
+          pattern: noteboard-*
+          merge-multiple: true
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ls -l packages
+          gh release create "$GITHUB_REF_NAME" packages/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "NoteBoard ${GITHUB_REF_NAME#v}" --generate-notes

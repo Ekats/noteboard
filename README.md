@@ -28,7 +28,7 @@ Early development. Primary target is KDE Plasma 6 on Wayland.
 ## Requirements
 
 - Qt 6 with `qt6-qtwayland` and `qt6-qtdeclarative`
-- `layer-shell-qt` (provides the `org.kde.layershell` QML module)
+- `layer-shell-qt` 6.6+ (provides the `org.kde.layershell` QML module)
 - `python3-pyside6`
 - `python3-gobject` (Gio talks to the RemoteDesktop portal for pasting;
   PySide6's QtDBus cannot send the uint options it needs)
@@ -47,24 +47,42 @@ sudo dnf install python3-pyside6 python3-gobject libsecret layer-shell-qt qt6-qt
 
 ## Install
 
+Download the package for your distro from the
+[Releases](https://github.com/Ekats/noteboard/releases) page. Dependencies are
+installed by the package manager; the service is not enabled automatically.
+
 ```
-pip install --user -e .
-mkdir -p ~/.local/share/applications
+sudo dnf install ./noteboard-*.rpm              # Fedora
+sudo apt install ./noteboard_*.deb              # Ubuntu 26.04 or newer
+sudo pacman -U noteboard-*.pkg.tar.zst          # Arch
+systemctl --user enable --now noteboard
+```
+
+Needs `layer-shell-qt` 6.6+ and Qt 6.9+ (Popup.qml uses `LayerShell.Window.screen`
+and `RectangularShadow`). That rules out Debian 13 and Ubuntu 25.10 (and older):
+the `.deb` refuses to install there. Fedora and Arch are current enough.
+
+### From source (pip)
+
+Install the dependencies above with your package manager first, in
+particular the **distro's** PySide6: the PySide6 wheel from PyPI bundles its
+own Qt, which cannot see the system's `org.kde.layershell` module, so
+NoteBoard deliberately does not depend on it.
+
+```
+pip install --user .
+mkdir -p ~/.local/share/applications ~/.config/systemd/user
 sed "s|@HOME@|$HOME|" packaging/io.github.ekats.noteboard.desktop \
   > ~/.local/share/applications/io.github.ekats.noteboard.desktop
+cp packaging/noteboard.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now noteboard
 ```
 
 The `.desktop` file is only the app's identity (not an autostart entry); its
 `Exec` must be the absolute path, which the `sed` fills in. The unit expects
 the entry point at `~/.local/bin/noteboard`, which is where `pip install --user`
-puts it.
-
-## Enable the service
-
-```
-systemctl --user link "$PWD/packaging/noteboard.service"
-systemctl --user enable --now noteboard
-```
+puts it. (Packages rewrite both paths to `/usr/bin/noteboard`.)
 
 ## First run
 
@@ -77,6 +95,10 @@ start, because NoteBoard now identifies itself by name; see
 [docs/running.md](docs/running.md). On its first start NoteBoard also takes `Meta+V` from
 Plasma's clipboard popup; [docs/running.md](docs/running.md) explains how to
 give it back.
+
+## License
+
+GPL-3.0-or-later; see [LICENSE](LICENSE).
 
 ## Docs
 
