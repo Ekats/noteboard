@@ -70,10 +70,10 @@ systemctl --user enable --now noteboard
 
 Pasting into the previous app is opt-in: Settings → **Paste automatically**.
 Off (the default on a fresh install), a click only copies and you press Ctrl+V.
-Turning it on explains what is needed, then KDE shows a one-off permission
-dialog (keyboard access, labelled “remote control”). If you granted it with an
-earlier version, the setting stays on, but KDE asks once more because
-NoteBoard now identifies itself by name; see
+Turning it on makes KDE show a one-off permission dialog (keyboard access,
+labelled “remote control”); if you decline, the switch turns itself off. If you
+granted it with an earlier version, the switch is turned off once at the next
+start, because NoteBoard now identifies itself by name; see
 [docs/running.md](docs/running.md). On its first start NoteBoard also takes `Meta+V` from
 Plasma's clipboard popup; [docs/running.md](docs/running.md) explains how to
 give it back.

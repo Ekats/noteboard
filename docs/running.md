@@ -32,18 +32,18 @@ clipboard entry copies it and closes the popup; you press Ctrl+V yourself, and
 NoteBoard never contacts the RemoteDesktop portal. On, NoteBoard also presses
 Ctrl+V (Ctrl+Shift+V in terminals) in the app you came from.
 
-Turning it on shows an explanation first. **Continue** then makes the request
-and KDE asks whether to allow NoteBoard keyboard access (labelled “remote
-control”); **Cancel** leaves the setting off. The line under the switch shows
-the state: *Allowed*, *Waiting for permission…*, *Not allowed — clicking copies
-only*, or *Unavailable (no portal)*. While it is anything but *Allowed*, a click
-only copies.
+Turning it on makes the request at once: KDE asks whether to allow NoteBoard
+keyboard access (labelled “remote control”). If you decline, or the request
+fails, or the permission is later revoked, the switch turns itself off and the
+line under it says *Not allowed — switched off* (or *Unavailable (no portal)*);
+clicks then only copy. While the dialog is open it reads *Waiting for
+permission…*, and *Allowed* once granted.
 
 NoteBoard identifies itself to the portal by its app id, so KDE names it in
 the dialog. A permission granted by an earlier version was recorded without
-that id and is not reused: the setting stays on for those users (it defaults to
-on when a permission was already granted), the explanation reappears once in
-Settings, and KDE asks one more time. Nothing is asked at startup before that.
+that id and is not reused: for those users the setting is switched off at the
+next start, without a dialog, and turning it on again asks once more. Nothing
+is ever asked at startup.
 To revoke the permission, use System Settings → Application Permissions →
 Remote Control.
 

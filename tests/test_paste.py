@@ -99,29 +99,84 @@ class PasteSettingsTest(unittest.TestCase):
         p.begin()
         self.assertEqual(self.keyboard.calls, ["start"])
 
-    def test_migrated_on_with_old_identity_waits_for_consent(self):
-        self.grant(app_id="")
+    def fail(self, state):
+        self.keyboard.state = state
+        self.keyboard.stateChanged.emit()
+
+    def test_on_without_trusted_grant_switches_off_at_startup(self):
+        self.grant(app_id="")  # token from before NoteBoard identified itself
         p = self.paster()
         self.assertTrue(p.autoPaste)
         p.begin()
-        self.assertEqual(self.keyboard.calls, [])
-        self.assertEqual(p.status, "consent")
-        p.confirmConsent()
+        self.assertFalse(p.autoPaste)
+        self.assertFalse(self.settings.value(AUTO_PASTE_KEY, type=bool))
+        self.assertEqual(p.status, "off")
+        self.assertNotIn("start", self.keyboard.calls)
+
+    def test_on_without_any_token_switches_off_at_startup(self):
+        self.settings.setValue(AUTO_PASTE_KEY, True)
+        p = self.paster()
+        p.begin()
+        self.assertFalse(p.autoPaste)
+        self.assertNotIn("start", self.keyboard.calls)
+
+    def test_enabling_requests_immediately(self):
+        p = self.paster()
+        p.setAutoPaste(True)
         self.assertEqual(self.keyboard.calls, ["start"])
         self.assertEqual(p.status, "waiting")
+        self.assertTrue(self.settings.value(AUTO_PASTE_KEY, type=bool))
 
-    def test_switching_on_without_grant_asks_for_consent_first(self):
+    def test_decline_switches_off_and_persists(self):
         p = self.paster()
         p.setAutoPaste(True)
-        self.assertEqual(p.status, "consent")
-        self.assertEqual(self.keyboard.calls, [])
-
-    def test_cancel_switches_off(self):
-        p = self.paster()
-        p.setAutoPaste(True)
-        p.setAutoPaste(False)
-        self.assertEqual(p.status, "off")
+        self.fail("denied")
+        self.assertFalse(p.autoPaste)
         self.assertFalse(self.settings.value(AUTO_PASTE_KEY, type=bool))
+        self.assertEqual(p.status, "declined")
+        p.paste("x")  # copy only
+        self.assertEqual(self.clipboard.copied, ["x"])
+        self.assertFalse(p._timeout.isActive())
+
+    def test_enabling_again_clears_the_note(self):
+        p = self.paster()
+        p.setAutoPaste(True)
+        self.fail("denied")
+        p.setAutoPaste(True)
+        self.assertEqual(p.status, "waiting")
+
+    def test_no_portal_switches_off_with_note(self):
+        p = self.paster()
+        p.setAutoPaste(True)
+        self.fail("unavailable")
+        self.assertFalse(p.autoPaste)
+        self.assertEqual(p.status, "unavailable")
+
+    def test_startup_with_grant_starts_silently(self):
+        self.grant()
+        p = self.paster()
+        p.begin()
+        self.assertEqual(self.keyboard.calls, ["start"])
+        self.assertTrue(p.autoPaste)
+
+    def test_startup_grant_failing_switches_off(self):
+        self.grant()
+        p = self.paster()
+        p.begin()
+        self.fail("denied")
+        self.assertFalse(p.autoPaste)
+        self.assertFalse(self.settings.value(AUTO_PASTE_KEY, type=bool))
+
+    def test_allowed_then_closed_switches_off(self):
+        self.grant()
+        p = self.paster()
+        p.begin()
+        self.keyboard.state = "allowed"
+        self.keyboard.stateChanged.emit()
+        self.assertEqual(p.status, "allowed")
+        self.fail("denied")  # the portal's Closed signal
+        self.assertFalse(p.autoPaste)
+        self.assertEqual(p.status, "declined")
 
     def test_switching_off_closes_the_session(self):
         self.grant()
@@ -129,13 +184,7 @@ class PasteSettingsTest(unittest.TestCase):
         p.begin()
         p.setAutoPaste(False)
         self.assertEqual(self.keyboard.calls, ["start", "stop"])
-
-    def test_switching_on_with_grant_starts_without_consent(self):
-        self.grant()
-        self.settings.setValue(AUTO_PASTE_KEY, False)
-        p = self.paster()
-        p.setAutoPaste(True)
-        self.assertEqual(self.keyboard.calls, ["start"])
+        self.assertEqual(p.status, "off")
 
 
 class PortalKeyboardOffTest(unittest.TestCase):

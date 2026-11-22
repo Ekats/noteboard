@@ -285,9 +285,10 @@ class Paster(QObject):
     """Copies an entry and, when "Paste automatically" is on, types the paste
     shortcut into the app the popup was opened from.
 
-    The portal session exists only while the setting is on. Until the user
-    has agreed to the permission request (status "consent") nothing is
-    asked: the Settings page explains it first."""
+    The portal session exists only while the setting is on. Switching it on
+    asks right away (KDE's dialog is the consent). Whenever the permission is
+    refused or lost the setting switches itself off, so what the switch shows
+    is what happens."""
 
     autoPasteChanged = Signal()
     statusChanged = Signal()
@@ -299,54 +300,66 @@ class Paster(QObject):
         self._keyboard = keyboard
         self._settings = settings if settings is not None else QSettings()
         self._auto = migrate_auto_paste(self._settings)
+        self._note = ""  # why the setting was switched off, for the status line
         self._window_class = ""
         self._pending: str | None = None
         self._timeout = QTimer(self, singleShot=True, interval=ECHO_TIMEOUT_MS)
         self._timeout.timeout.connect(self._send)
         clipboard.changed.connect(self._on_clipboard)
-        keyboard.stateChanged.connect(self.statusChanged)
+        keyboard.stateChanged.connect(self._on_state)
 
     def begin(self) -> None:
-        """At startup: opens the session only if it is wanted and already
-        permitted, so no dialog appears unprompted."""
-        if self._auto and has_grant(self._settings):
+        """At startup: resumes silently under an existing grant. Without one
+        the setting is switched off rather than asking, so no dialog appears
+        at login; switching it on again asks."""
+        if not self._auto:
+            return
+        if has_grant(self._settings):
             self._keyboard.start()
+        else:
+            self._switch_off("")
 
     def _get_auto(self) -> bool:
         return self._auto
 
     def _get_status(self) -> str:
-        """off, consent, waiting, allowed, denied or unavailable."""
-        if not self._auto:
-            return "off"
-        state = self._keyboard.state
-        if state == "off" and not has_grant(self._settings):
-            return "consent"
-        return state
+        """off, waiting, allowed, declined or unavailable. The last two are
+        only seen with the setting off, as the reason it was switched off."""
+        return self._keyboard.state if self._auto else (self._note or "off")
 
     autoPaste = Property(bool, _get_auto, notify=autoPasteChanged)
     status = Property(str, _get_status, notify=statusChanged)
+
+    def _on_state(self) -> None:
+        if self._auto and self._keyboard.state in ("denied", "unavailable"):
+            self._switch_off("unavailable" if self._keyboard.state == "unavailable"
+                             else "declined")
+        else:
+            self.statusChanged.emit()
+
+    def _switch_off(self, note: str) -> None:
+        self._auto = False
+        self._note = note
+        self._settings.setValue(AUTO_PASTE_KEY, False)
+        self._pending = None
+        self._timeout.stop()
+        self._keyboard.stop()
+        self.autoPasteChanged.emit()
+        self.statusChanged.emit()
 
     @Slot(bool)
     def setAutoPaste(self, on: bool) -> None:
         if on == self._auto:
             return
-        self._auto = on
-        self._settings.setValue(AUTO_PASTE_KEY, on)
-        if on:
-            self.begin()
-        else:
-            self._pending = None
-            self._timeout.stop()
-            self._keyboard.stop()
+        if not on:
+            self._switch_off("")
+            return
+        self._auto = True
+        self._note = ""
+        self._settings.setValue(AUTO_PASTE_KEY, True)
+        self._keyboard.start()
         self.autoPasteChanged.emit()
         self.statusChanged.emit()
-
-    @Slot()
-    def confirmConsent(self) -> None:
-        """The user read the explanation: ask the portal now."""
-        if self._auto:
-            self._keyboard.start()
 
     def set_target(self, window_class: str) -> None:
         self._window_class = window_class

@@ -75,41 +75,23 @@ Item {
             }
         }
 
-        // Shown before the first request, so the KDE dialog that follows is
-        // expected. Inline: a second window could not take focus here.
-        ColumnLayout {
-            visible: paster.status === "consent"
+        OutlineLabel {
+            outline: config.fontOutline
             Layout.fillWidth: true
-            spacing: 6
-
-            OutlineLabel {
-                outline: config.fontOutline
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                text: qsTr("To paste into the app you came from, NoteBoard needs to press Ctrl+V for you. KDE will ask you to allow NoteBoard keyboard access (shown as “remote control”). It's only used for that.")
-            }
-            RowLayout {
-                Button {
-                    text: qsTr("Continue")
-                    onClicked: paster.confirmConsent()
-                }
-                Button {
-                    text: qsTr("Cancel")
-                    onClicked: paster.setAutoPaste(false)
-                }
-            }
+            wrapMode: Text.Wrap
+            text: qsTr("Presses Ctrl+V in the app you came from. KDE will ask to allow NoteBoard keyboard access (“remote control”).")
         }
 
         OutlineLabel {
             id: pasteStatus
-            visible: paster.autoPaste && paster.status !== "consent"
+            visible: paster.status !== "off"
             outline: config.fontOutline
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             text: paster.status === "allowed" ? qsTr("Allowed")
                 : paster.status === "waiting" ? qsTr("Waiting for permission…")
                 : paster.status === "unavailable" ? qsTr("Unavailable (no portal)")
-                : qsTr("Not allowed — clicking copies only")
+                : qsTr("Not allowed — switched off")
         }
 
         RowLayout {

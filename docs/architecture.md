@@ -32,8 +32,10 @@ is exclusive, Esc is the only way out from the keyboard.
 A Wayland client cannot press keys in another client, so **Paste
 automatically** (Settings, opt-in) sends Ctrl+V through the
 xdg-desktop-portal RemoteDesktop interface (`noteboard/paste.py`). The portal
-session is created only while the setting is on, and only after the user has
-read the explanation and pressed Continue; off, a click just copies.
+session is created only while the setting is on. Switching it on makes the
+request at once; a decline, failure or later revocation switches the setting
+off again, and so does a startup with no permission recorded for NoteBoard's
+own app id (no dialog at login). Off, a click just copies.
 
 The portal identifies a caller per D-Bus connection, and KDE's permission
 dialog can only show the app's name (it cannot carry a custom reason). So the
