@@ -46,12 +46,28 @@ KEY_SHIFT_L = 0xffe1
 KEY_V = 0x76
 
 # Terminals take Ctrl+Shift+V, since plain Ctrl+V is a control character to
-# them. Lower-cased resourceClass values, as KWin reports them.
+# them. Lower-cased resourceClass values, as KWin reports them: the Wayland
+# app id for native windows, the WM_CLASS class for XWayland ones.
+# xterm/urxvt don't paste the clipboard on Ctrl+Shift+V by default (best
+# effort), and terminals embedded in other apps (VS Code, JetBrains) can't
+# be told apart by window class.
 TERMINAL_CLASSES = {
-    "konsole", "org.kde.konsole", "yakuake", "org.kde.yakuake", "kitty",
-    "alacritty", "foot", "org.wezfurlong.wezterm", "wezterm",
-    "com.mitchellh.ghostty", "gnome-terminal-server", "org.gnome.ptyxis",
-    "xterm", "tilix", "terminator",
+    # KDE
+    "konsole", "org.kde.konsole", "yakuake", "org.kde.yakuake",
+    # GNOME
+    "gnome-terminal-server", "org.gnome.terminal", "org.gnome.ptyxis",
+    "org.gnome.console", "kgx", "tilix", "com.gexperts.tilix",
+    "terminator", "com.raggesilver.blackbox",
+    # Other desktops
+    "xfce4-terminal", "mate-terminal", "lxterminal", "qterminal",
+    "com.system76.cosmicterm",
+    # Drop-down
+    "guake", "tilda",
+    # Standalone
+    "kitty", "alacritty", "foot", "footclient", "org.wezfurlong.wezterm",
+    "wezterm", "com.mitchellh.ghostty", "rio", "org.contourterminal.contour",
+    "contour", "dev.warp.warp", "tabby", "hyper", "terminology",
+    "cool-retro-term", "st-256color", "xterm", "urxvt", "rxvt",
 }
 
 # Pause between our selection landing and the keystroke, for KWin to hand

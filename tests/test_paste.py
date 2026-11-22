@@ -4,8 +4,9 @@ from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QObject, QSettings, Signal
 
-from noteboard.paste import (APP_ID, AUTO_PASTE_KEY, TOKEN_APP_KEY, TOKEN_KEY,
-                             Paster, PortalKeyboard, has_grant,
+from noteboard.paste import (APP_ID, AUTO_PASTE_KEY, KEY_CONTROL_L, KEY_SHIFT_L,
+                             KEY_V, TOKEN_APP_KEY, TOKEN_KEY, Paster,
+                             PortalKeyboard, combo_for, has_grant,
                              migrate_auto_paste)
 
 app = QCoreApplication.instance() or QCoreApplication([])
@@ -185,6 +186,20 @@ class PasteSettingsTest(unittest.TestCase):
         p.setAutoPaste(False)
         self.assertEqual(self.keyboard.calls, ["start", "stop"])
         self.assertEqual(p.status, "off")
+
+
+class ComboForTest(unittest.TestCase):
+    TERMINAL = [KEY_CONTROL_L, KEY_SHIFT_L, KEY_V]
+
+    def test_terminals_match_whatever_the_case(self):
+        for cls in ("org.gnome.Console", "com.gexperts.Tilix", "Alacritty",
+                    "org.gnome.Terminal", "XTerm", "konsole"):
+            self.assertEqual(combo_for(cls), self.TERMINAL, cls)
+
+    def test_other_apps_use_plain_ctrl_v(self):
+        self.assertEqual(combo_for("org.kde.kwrite"),
+                         [KEY_CONTROL_L, KEY_V])
+        self.assertEqual(combo_for(""), [KEY_CONTROL_L, KEY_V])
 
 
 class PortalKeyboardOffTest(unittest.TestCase):
